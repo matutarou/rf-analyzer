@@ -1,0 +1,13 @@
+municipality,population,revenue,category,constant
+Test01,100,12,A,1
+Test02,200,23,B,1
+Test03,300,35,A,1
+Test04,400,42,B,1
+Test05,500,54,A,1
+Test06,600,65,B,1
+Test07,700,71,A,1
+Test08,800,85,B,1
+Test09,900,95,A,1
+Test10,1000,102,B,1
+Test11,1100,118,A,1
+Test12,,120,B,1
