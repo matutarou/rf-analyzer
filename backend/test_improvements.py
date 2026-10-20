@@ -10,6 +10,7 @@ import pandas as pd
 import assistant
 import main
 import rag
+import routes_analysis
 
 
 class ImprovementsTest(unittest.TestCase):
@@ -56,7 +57,7 @@ class ImprovementsTest(unittest.TestCase):
             release.wait(5)
             checkpoint("処理中")
 
-        with patch.object(main, "_analyze", slow):
+        with patch.object(routes_analysis, "_analyze", slow):
             job_id = main.start_analysis_job(req)["job_id"]
             self.assertTrue(entered.wait(5))
             main.cancel_analysis_job(job_id)
