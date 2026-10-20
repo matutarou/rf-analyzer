@@ -52,8 +52,8 @@ def resolve_port(env_name: str, default: int) -> int:
     return port
 
 
-BACKEND_PORT = resolve_port("RF_BACKEND_PORT", 8765)
-FRONTEND_PORT = resolve_port("RF_FRONTEND_PORT", 5273)
+BACKEND_PORT = resolve_port("RF_BACKEND_PORT", 8780)
+FRONTEND_PORT = resolve_port("RF_FRONTEND_PORT", 5280)
 
 app = FastAPI(title="自治体データ RF回帰分析 API", version="1.0.0")
 

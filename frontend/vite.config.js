@@ -11,8 +11,8 @@ function resolvePort(envName, defaultPort) {
   return port
 }
 
-const backendPort = resolvePort('RF_BACKEND_PORT', 8765)
-const frontendPort = resolvePort('RF_FRONTEND_PORT', 5273)
+const backendPort = resolvePort('RF_BACKEND_PORT', 8780)
+const frontendPort = resolvePort('RF_FRONTEND_PORT', 5280)
 
 export default defineConfig({
   plugins: [react()],

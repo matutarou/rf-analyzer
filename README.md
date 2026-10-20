@@ -35,7 +35,7 @@ LLM連携は既存の [Chat Completions API](https://developers.openai.com/api/r
 
 ```
 Frontend (React + Vite)  ──REST API──▶  Backend (FastAPI + scikit-learn)
-  :5273                                   :8765
+  :5280                                   :8780
 ```
 
 ## セットアップ
@@ -59,8 +59,8 @@ pip install -r requirements.txt
 
 # 起動
 python main.py
-# → http://localhost:8765 で起動
-# → API ドキュメント: http://localhost:8765/docs
+# → http://localhost:8780 で起動
+# → API ドキュメント: http://localhost:8780/docs
 ```
 
 ### 2. フロントエンド
@@ -73,15 +73,15 @@ npm install
 
 # 開発サーバー起動
 npm run dev
-# → http://localhost:5273 で起動
+# → http://localhost:5280 で起動
 ```
 
-ブラウザで `http://localhost:5273` にアクセスしてください．
+ブラウザで `http://localhost:5280` にアクセスしてください．
 
 ### ポートの変更
 
-- `RF_BACKEND_PORT`（既定: `8765`）: バックエンドの待受ポートとViteのAPIプロキシ先。
-- `RF_FRONTEND_PORT`（既定: `5273`）: Vite開発サーバーのポートとバックエンドのCORS許可オリジン。
+- `RF_BACKEND_PORT`（既定: `8780`）: バックエンドの待受ポートとViteのAPIプロキシ先。
+- `RF_FRONTEND_PORT`（既定: `5280`）: Vite開発サーバーのポートとバックエンドのCORS許可オリジン。
 
 環境変数は起動するターミナルで設定してください。バックエンドとフロントエンドの両方のターミナルで、同じ `RF_BACKEND_PORT` を指定する必要があります。`RF_FRONTEND_PORT` を変更する場合も、CORS設定を合わせるため両方で同じ値を指定してください。
 
