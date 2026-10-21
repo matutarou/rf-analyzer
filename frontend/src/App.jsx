@@ -6,7 +6,6 @@ import ColumnSelector from './components/ColumnSelector'
 import HyperParams from './components/HyperParams'
 import Results from './components/Results'
 import PredictForm from './components/PredictForm'
-import TestPredict from './components/TestPredict'
 import AssistantPanel from './components/AssistantPanel'
 import WorkspacePanel, { IconButton } from './components/WorkspacePanel'
 import DataDiagnostics from './components/DataDiagnostics'
@@ -280,7 +279,6 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
               { id: 'sec-params',   label: 'パラメータ' },
               { id: 'sec-results',  label: '分析結果' },
               { id: 'sec-simulate', label: 'シミュレーション' },
-              { id: 'sec-test',     label: 'テスト予測' },
             ].map(({ id, label }) => (
               <button
                 key={id}
@@ -343,17 +341,6 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
               {results && !trainedParams && initial.model_status?.reason && <p className="work-warning" role="status">{initial.model_status.reason}</p>}
               <PredictForm
                 modelId={results?.model_id}
-                fileInfo={fileInfo}
-                selectedTarget={selectedTarget}
-                selectedFeatures={selectedFeatures}
-                hyperParams={trainedParams}
-              />
-            </div>
-
-            <div id="sec-test">
-              <TestPredict
-                key={fileInfo?.file_id || 'empty'}
-                dataMode="single"
                 fileInfo={fileInfo}
                 selectedTarget={selectedTarget}
                 selectedFeatures={selectedFeatures}
