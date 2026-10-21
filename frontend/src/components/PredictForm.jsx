@@ -1,18 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell, ReferenceLine,
-} from 'recharts'
 
 import { changeRate, signed, sortByShap } from '../simulation'
 
 const API_BASE = '/api'
 const fmt = (v, d = 2) => (v != null ? Number(v).toFixed(d) : '—')
-
-function calcYWidth(names) {
-  return Math.max(80, Math.max(...names.map(n => n.length)) * 13 + 16)
-}
 
 function sliderStep(min, max) {
   const range = max - min
@@ -113,13 +105,6 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
     scheduleSimulate(checkedFeatures, sliderValues)
     return () => clearTimeout(debounceRef.current)
   }, [])
-
-  const chartData = result?.marginal_effects?.map(e => ({
-    feature: e.feature,
-    effect: e.effect,
-  })) ?? []
-
-  const yWidth = chartData.length > 0 ? calcYWidth(chartData.map(d => d.feature)) : 120
 
   return (
     <div className="card" style={{ marginTop: 20 }}>
@@ -239,42 +224,6 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
               </tr>)}</tbody>
             </table></div>
 
-            {/* 棒グラフ：変数別限界効果 */}
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 12 }}>
-              変数別の予測への影響（限界効果）
-            </div>
-            <div style={{ overflowX: 'auto' }}>
-              <div style={{ minWidth: 360 }}>
-                <ResponsiveContainer width="100%" height={Math.max(180, chartData.length * 52)}>
-                  <BarChart
-                    data={chartData}
-                    layout="vertical"
-                    margin={{ top: 4, right: 40, left: 10, bottom: 4 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis type="number" tick={{ fontSize: 11 }} />
-                    <YAxis dataKey="feature" type="category" width={yWidth} tick={{ fontSize: 11 }} />
-                    <Tooltip
-                      formatter={(v) => [
-                        `${v >= 0 ? '+' : ''}${fmt(v, 2)}`,
-                        '限界効果',
-                      ]}
-                      contentStyle={{ fontSize: 12, borderRadius: 8 }}
-                    />
-                    <ReferenceLine x={0} stroke="#94a3b8" strokeWidth={1.5} />
-                    <Bar dataKey="effect" radius={[0, 4, 4, 0]}>
-                      {chartData.map((d, i) => (
-                        <Cell key={i} fill={d.effect >= 0 ? '#16a34a' : '#dc2626'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 16, fontSize: 11, color: '#64748b', marginTop: 8 }}>
-              <span><span style={{ color: '#16a34a', fontWeight: 700 }}>■</span> 予測値を上げる</span>
-              <span><span style={{ color: '#dc2626', fontWeight: 700 }}>■</span> 予測値を下げる</span>
-            </div>
           </div>
         )}
       </div>
