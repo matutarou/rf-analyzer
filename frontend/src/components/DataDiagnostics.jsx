@@ -50,7 +50,6 @@ export default function DataDiagnostics({ fileId, target, features, onAsk }) {
           return <td key={columnName}><button type="button" style={{ background: correlationColor(value) }} aria-label={label} title={label} onClick={() => setFocused({ x: rowName, y: columnName, r: value, n: count })}>{value == null ? '—' : value.toFixed(2)}</button></td>
         })}</tr>)}
       </tbody></table></div>
-      <details><summary>相関値の一覧を表示</summary><div className="work-scroll"><table className="work-table"><thead><tr><th>変数1</th><th>変数2</th><th>相関 −1〜1</th><th>有効件数</th></tr></thead><tbody>{relations.pairs.map(pair => <tr key={JSON.stringify([pair.x, pair.y])}><td>{pair.x}</td><td>{pair.y}</td><td>{pair.r == null ? '計算不可' : pair.r.toFixed(3)}</td><td>{pair.n}</td></tr>)}</tbody></table></div></details>
     </>}
     {relations && !relations.error && variables.length < 2 && <p>変数間の比較には数値列が2列以上必要です</p>}
   </section>
