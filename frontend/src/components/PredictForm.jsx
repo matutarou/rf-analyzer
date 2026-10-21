@@ -111,12 +111,6 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
     scheduleSimulate(checkedFeatures, next)
   }
 
-  const handleReset = () => {
-    setSliderValues({ ...baselineValues })
-    setResult(null)
-    setError('')
-  }
-
   useEffect(() => () => clearTimeout(debounceRef.current), [])
 
   // 行データを取得したら先頭の市町村を対象にする。取得できないときは平均値で計算する
@@ -216,7 +210,6 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
         })}
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-          <button className="btn btn-secondary" onClick={handleReset}>リセット</button>
           {updating && (
             <span style={{ fontSize: 12, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{
