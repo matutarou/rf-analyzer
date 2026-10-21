@@ -65,6 +65,10 @@
 .pyramid-controls { display: flex; flex-wrap: wrap; gap: 16px; margin: 20px 0; }
 .pyramid-controls select { padding: 8px; border: 1px solid #9dafaa; border-radius: 4px; }
 .pyramid-chart { min-width: 0; width: 100%; }
+/* 比較する人口ピラミッドを画面幅に応じて2〜4列に並べる */
+.pyramid-compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.pyramid-item { min-width: 0; }
+.pyramid-item h3 { margin: 0 0 4px; font-size: 14px; text-align: center; }
 .heatmap-options { margin: 16px 0; }
 .heatmap-variable-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; max-height: 260px; overflow: auto; margin: 12px 0; }
 .heatmap-variable-list label { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; overflow-wrap: anywhere; }

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { guessPyramidConfig, pyramidSeries } from './populationPyramid.js'
+import { comparedCities, guessPyramidConfig, pyramidSeries } from './populationPyramid.js'
 
 test('人口ピラミッドの列名を推定し、見出しのない自治体列を使用できる', () => {
   assert.deepEqual(guessPyramidConfig({ name: '人口ピラミッド', columns: ['Unnamed: 0', '性別', '年齢層', '人口'] }), {
@@ -51,4 +51,14 @@ test('負の階級で合計が0や負になってもグラフの左右を維持�
     assert.ok(series.rows.every(row => Number.isFinite(row.male) && row.male <= 0 && Number.isFinite(row.female) && row.female >= 0))
     assert.ok(series.limit > 0)
   }
+})
+
+test('比較する市町村は存在するものを重複なく最大4つ選び、未選択なら先頭を表示する', () => {
+  const cities = ['水戸市', '日立市', '土浦市', '古河市', '石岡市'].map(name => ({ name, bands: [] }))
+  const names = list => comparedCities(cities, list).map(city => city.name)
+  assert.deepEqual(names(['土浦市', '', '水戸市']), ['土浦市', '水戸市'])
+  assert.deepEqual(names(['日立市', '日立市', '不明市']), ['日立市'])
+  assert.deepEqual(names(['石岡市', '古河市', '土浦市', '日立市', '水戸市']), ['石岡市', '古河市', '土浦市', '日立市'])
+  assert.deepEqual(names(['', '']), ['水戸市'])
+  assert.deepEqual(comparedCities([], ['水戸市']), [])
 })

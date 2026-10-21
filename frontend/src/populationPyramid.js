@@ -23,3 +23,10 @@ export function pyramidSeries(city, mode = 'count') {
   const hasNegativeBands = bands.some(band => band.male < 0 || band.female < 0)
   return { rows, total, limit, hasNegativeBands }
 }
+
+// 比較する市町村（最大4つ）を、存在するものだけ重複なく選んだ順に返す。未選択なら先頭の市町村を表示する
+export const MAX_COMPARED_CITIES = 4
+export function comparedCities(cities = [], names = []) {
+  const picked = [...new Set(names)].map(name => cities.find(city => city.name === name)).filter(Boolean).slice(0, MAX_COMPARED_CITIES)
+  return picked.length ? picked : cities.slice(0, 1)
+}
