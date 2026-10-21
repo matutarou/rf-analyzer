@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import axios from 'axios'
 import PyramidSheetPicker from './PyramidSheetPicker'
-import { defaultWorkbookSelection } from '../workbookSelection'
+import { defaultWorkbookSelection, isFactorSheet } from '../workbookSelection'
 
 export default function FileUpload({ onUpload, fileInfo }) {
   const [dragOver, setDragOver] = useState(false)
@@ -105,12 +105,12 @@ export default function FileUpload({ onUpload, fileInfo }) {
           <legend>Excelシートの選択</legend>
           <p>{workbook.file.name}</p>
           <p>1シートだけ読み込むか、複数シートを共通のキーで横結合できます。</p>
-          <p>「人口関係データ」と「想定される要因」がある場合は、両方を初期選択します。市町村名などの結合キーを確認して読み込むと、結合したデータをプレビューできます。説明変数は「想定される要因」から選択し、「人口ピラミッド」は可視化専用です。</p>
+          <p>「人口関係データ」と「想定される要因（原因）」がある場合は、両方を初期選択します。市町村名などの結合キーを確認して読み込むと、結合したデータをプレビューできます。説明変数は「想定される要因（原因）」から選択し、「人口ピラミッド」は可視化専用です。</p>
           <div className="work-scroll"><table className="work-table">
             <thead><tr><th>使用</th><th>シート</th><th>行 × 列</th>{selected.length > 1 && <th>結合キー</th>}</tr></thead>
             <tbody>{workbook.sheets.map(sheet => <tr key={sheet.name}>
               <td><input type="checkbox" aria-label={`${sheet.name}を読み込む`} checked={selected.includes(sheet.name)} disabled={!sheet.rows || !sheet.columns.length || pyramidConfig?.sheet_name === sheet.name} onChange={() => toggleSheet(sheet.name)} /></td>
-              <td>{sheet.name}{pyramidConfig?.sheet_name === sheet.name ? '（可視化専用）' : sheet.name === '想定される要因' ? '（説明変数候補）' : ''}</td><td>{sheet.rows.toLocaleString()} × {sheet.columns.length}</td>
+              <td>{sheet.name}{pyramidConfig?.sheet_name === sheet.name ? '（可視化専用）' : isFactorSheet(sheet.name) ? '（説明変数候補）' : ''}</td><td>{sheet.rows.toLocaleString()} × {sheet.columns.length}</td>
               {selected.length > 1 && <td>{selected.includes(sheet.name) && <select aria-label={`${sheet.name}の結合キー`} value={joinKeys[sheet.name]} onChange={event => setJoinKeys(value => ({ ...value, [sheet.name]: event.target.value }))}>
                 {sheet.columns.map(column => <option key={column} value={column}>{column}</option>)}
               </select>}</td>}

@@ -68,3 +68,15 @@ test('想定される要因が基準の場合は自治体列を除き、CSVや�
   assert.deepEqual(featureColumns(legacy), legacy.slice(1))
   assert.deepEqual(featureColumns([]), [])
 })
+
+test('「想定される原因」という名前のシートも説明変数候補として扱う', () => {
+  const selection = defaultWorkbookSelection([
+    sheet('人口関係データ', ['茨城県', '人口']), sheet('県外転出状況'), sheet('人口ピラミッド', ['', '性別', '年齢層', '人口']), sheet('想定される原因', ['茨城県', '所得']),
+  ])
+  assert.deepEqual(selection.sheetNames, ['人口関係データ', '想定される原因'])
+  const columns = [
+    { name: '茨城県', source_sheet: '人口関係データ' }, { name: '人口', source_sheet: '人口関係データ' },
+    { name: '想定される原因 / 所得', source_sheet: '想定される原因' },
+  ]
+  assert.deepEqual(featureColumns(columns), [columns[2]])
+})
