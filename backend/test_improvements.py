@@ -71,6 +71,20 @@ class ImprovementsTest(unittest.TestCase):
         main.trained_models.pop("test", None)
         main.model_artifacts.pop("test", None)
 
+    def test_optimization_history(self):
+        history = routes_analysis.optimization_history([0.2, None, 0.1, 0.5, float("nan")])
+        self.assertEqual([h["value"] for h in history], [0.2, None, 0.1, 0.5, None])
+        self.assertEqual([h["best"] for h in history], [0.2, 0.2, 0.2, 0.5, 0.5])
+        self.assertEqual([h["trial"] for h in history], [1, 2, 3, 4, 5])
+        main.uploaded_data["history"] = pd.DataFrame({"x": range(10), "y": range(10)})
+        req = main.AnalyzeRequest(file_id="history", target_column="y", feature_columns=["x"], optimize=True, n_trials=2)
+        result = main._analyze(req)
+        self.assertEqual(len(result["optimization_history"]), 2)
+        self.assertNotIn("history", result["best_params"])
+        self.assertAlmostEqual(result["optimization_history"][-1]["best"], result["best_params"]["best_cv_score"])
+        for key in ("history",):
+            main.uploaded_data.pop(key, None); main.trained_models.pop(key, None); main.model_artifacts.pop(key, None)
+
 
 if __name__ == "__main__":
     unittest.main()

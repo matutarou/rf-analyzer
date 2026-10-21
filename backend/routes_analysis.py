@@ -52,6 +52,17 @@ def _score_by_metric(y_true, y_pred, metric: str) -> float:
 
 
 
+def optimization_history(values, direction="maximize"):
+    """Optunaの試行ごとのスコアと、その時点までの最良スコアの推移を返す"""
+    history, best = [], None
+    for number, value in enumerate(values, start=1):
+        if value is not None and np.isfinite(value):
+            best = value if best is None else (max(best, value) if direction == "maximize" else min(best, value))
+        history.append({"trial": number, "value": None if value is None or not np.isfinite(value) else float(value),
+                        "best": None if best is None else float(best)})
+    return history
+
+
 def optimize_hyperparams(X, y, random_state: int, n_trials: int, metric: str, checkpoint=lambda message: None) -> dict:
     """Optunaで指定指標を最適化するハイパーパラメータを探索する（LOOCVで評価）"""
     cfg = METRIC_CONFIG.get(metric, METRIC_CONFIG["r2"])
@@ -83,6 +94,7 @@ def optimize_hyperparams(X, y, random_state: int, n_trials: int, metric: str, ch
         "max_features": best["max_features"],
         "metric": metric,
         "best_cv_score": study.best_value,
+        "history": optimization_history([t.value for t in study.trials], direction),
     }
 
 
@@ -194,6 +206,7 @@ def _analyze(req: AnalyzeRequest, checkpoint=lambda message: None):
 
         # ハイパーパラメータ決定（Optuna最適化 or 手動指定）
         best_params = None
+        history = None
         if req.optimize:
             best_params = optimize_hyperparams(
                 X, y,
@@ -202,6 +215,8 @@ def _analyze(req: AnalyzeRequest, checkpoint=lambda message: None):
                 metric=req.optimize_metric,
                 checkpoint=checkpoint,
             )
+            # 推移は結果に別項目として返し、モデルのパラメータには含めない
+            history = best_params.pop("history")
             model_params = {k: v for k, v in best_params.items()
                             if k not in ("best_cv_score", "metric")}
         else:
@@ -301,6 +316,7 @@ def _analyze(req: AnalyzeRequest, checkpoint=lambda message: None):
             "feature_importance": feature_importance,
             "residual_stats": residual_stats,
             "best_params": best_params,
+            "optimization_history": history,
             "shap": shap_data,
             "data_info": {
                 "total_rows": len(df_work),

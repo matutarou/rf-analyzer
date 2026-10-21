@@ -1,0 +1,12 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { historyDomain } from './optunaHistory.js'
+
+test('推移グラフの縦軸は試行のR²を含み、極端に悪い試行は最良値の1.0下で切る', () => {
+  assert.deepEqual(historyDomain([{ value: 0.4, best: 0.4 }, { value: 0.6, best: 0.6 }]), [0.39, 0.61])
+  const [lower, upper] = historyDomain([{ value: -5, best: -5 }, { value: 0.5, best: 0.5 }])
+  assert.ok(lower >= -0.6 && lower < -0.5)
+  assert.ok(upper > 0.5)
+  assert.deepEqual(historyDomain([{ value: null, best: null }]), [0, 1])
+  assert.deepEqual(historyDomain(), [0, 1])
+})

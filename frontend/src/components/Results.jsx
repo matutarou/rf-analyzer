@@ -30,8 +30,9 @@ function DragScroll({ children }) {
 }
 import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  ScatterChart, Scatter, ReferenceLine, Cell,
+  ScatterChart, Scatter, ReferenceLine, Cell, ComposedChart, Line, Legend,
 } from 'recharts'
+import { historyDomain } from '../optunaHistory'
 
 // value_norm (0=低/青 → 1=高/赤) をRGB補間で色に変換
 function shapColor(norm) {
@@ -70,7 +71,7 @@ export default function Results({ results }) {
     )
   }
 
-  const { metrics, best_params, shap } = results
+  const { metrics, best_params, shap, optimization_history: history } = results
 
   const r2Mean = metrics.cv.r2
   const r2Class = r2Mean >= 0.7 ? 'good' : r2Mean >= 0.4 ? 'warn' : ''
@@ -116,6 +117,24 @@ export default function Results({ results }) {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Optunaの試行ごとのR²と、その時点までの最高値の推移 */}
+          {history?.length > 0 && (
+            <div style={{ borderTop: '1px solid #f1f5f9', marginTop: 16, paddingTop: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', letterSpacing: '0.05em', marginBottom: 10 }}>Optuna 試行ごとの決定係数 R²</div>
+              <ResponsiveContainer width="100%" height={260}>
+                <ComposedChart data={history} margin={{ top: 8, right: 16, bottom: 16, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="trial" type="number" domain={[1, history.length]} allowDecimals={false} tick={{ fontSize: 11 }} label={{ value: '試行回数', position: 'bottom', fontSize: 12, offset: 0 }} />
+                  <YAxis domain={historyDomain(history)} allowDataOverflow tick={{ fontSize: 11 }} tickFormatter={v => v.toFixed(2)} width={48} />
+                  <Tooltip formatter={(v, name) => [v == null ? '—' : Number(v).toFixed(4), name]} labelFormatter={v => `試行 ${v}`} />
+                  <Legend verticalAlign="top" height={24} />
+                  <Scatter dataKey="value" name="各試行のR²" fill="#94a3b8" isAnimationActive={false} />
+                  <Line dataKey="best" name="それまでの最高値" type="stepAfter" stroke="#2563eb" strokeWidth={2} dot={false} isAnimationActive={false} />
+                </ComposedChart>
+              </ResponsiveContainer>
             </div>
           )}
         </div>
