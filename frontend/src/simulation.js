@@ -18,3 +18,11 @@ export function sortByShap(features, shapImportance = []) {
     .sort((a, b) => a.rank - b.rank || a.index - b.index)
     .map(item => item.feature)
 }
+
+// シミュレーションの基準値。市町村の行があればその値を使い、欠けている変数は平均値で補う
+export function baselineFor(features, means, row) {
+  return Object.fromEntries(features.map(feature => {
+    const value = row?.[feature]
+    return [feature, Number.isFinite(value) ? value : means[feature]]
+  }))
+}

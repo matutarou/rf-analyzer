@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 
-import { changeRate, signed, sortByShap } from '../simulation'
+import { baselineFor, changeRate, signed, sortByShap } from '../simulation'
 
 const API_BASE = '/api'
 const fmt = (v, d = 2) => (v != null ? Number(v).toFixed(d) : '—')
@@ -34,12 +34,20 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
   // 選択肢はSHAPの大きい順に表示する（APIに送る変数の順序はモデルに合わせてselectedFeaturesのまま）
   const numericFeatures = sortByShap(selectedFeatures, shapImportance).filter(f => /^(u?int|float|Float|Int|bool)/i.test(colMap[f]?.dtype || ''))
 
-  const baselineValues = Object.fromEntries(
+  const meanValues = Object.fromEntries(
     numericFeatures.map(f => {
       const col = colMap[f]
       return [f, col?.mean ?? col?.min ?? 0]
     })
   )
+
+  // 対象の市町村（空なら全市町村の平均値を基準にする）
+  const idCol = fileInfo.columns[0]?.name
+  const [rows, setRows] = useState([])
+  const [cityIndex, setCityIndex] = useState('')
+  const cityRow = cityIndex === '' ? null : rows[Number(cityIndex)]
+  const baselineValues = baselineFor(numericFeatures, meanValues, cityRow)
+  const actualValue = cityRow?.[selectedTarget]
 
   const [checkedFeatures, setCheckedFeatures] = useState(new Set(numericFeatures.slice(0, 3)))
   const [sliderValues, setSliderValues] = useState({ ...baselineValues })
@@ -48,19 +56,19 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
   const [error, setError] = useState('')
   const debounceRef = useRef(null)
 
-  const simulate = async (checked, sliders) => {
+  const simulate = async (checked, sliders, base = baselineValues) => {
     const changed = [...checked]
     if (changed.length === 0) { setResult(null); return }
 
     setUpdating(true)
     try {
-      const simInput = { ...baselineValues, ...Object.fromEntries(changed.map(f => [f, sliders[f]])) }
+      const simInput = { ...base, ...Object.fromEntries(changed.map(f => [f, sliders[f]])) }
       const res = await axios.post(`${API_BASE}/predict_marginal_fast`, {
         file_id: fileInfo.file_id,
         model_id: modelId,
         target_column: selectedTarget,
         feature_columns: selectedFeatures,
-        baseline_input: baselineValues,
+        baseline_input: base,
         sim_input: simInput,
         changed_features: changed,
       })
@@ -74,9 +82,17 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
     }
   }
 
-  const scheduleSimulate = (checked, sliders) => {
+  const scheduleSimulate = (checked, sliders, base = baselineValues) => {
     clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => simulate(checked, sliders), 300)
+    debounceRef.current = setTimeout(() => simulate(checked, sliders, base), 300)
+  }
+
+  // 市町村を切り替えたら、スライダーをその市町村の値に戻して計算し直す
+  const chooseCity = (index) => {
+    setCityIndex(index)
+    const base = baselineFor(numericFeatures, meanValues, index === '' ? null : rows[Number(index)])
+    setSliderValues({ ...base })
+    scheduleSimulate(checkedFeatures, base, base)
   }
 
   const toggleFeature = (f) => {
@@ -106,6 +122,14 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
     return () => clearTimeout(debounceRef.current)
   }, [])
 
+  useEffect(() => {
+    let active = true
+    axios.get(`${API_BASE}/rows/${fileInfo.file_id}`)
+      .then(res => { if (active) setRows(res.data.rows) })
+      .catch(() => { if (active) setRows([]) })
+    return () => { active = false }
+  }, [fileInfo.file_id])
+
   return (
     <div className="card" style={{ marginTop: 20 }}>
       <div className="card-header">
@@ -119,6 +143,15 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
             <button onClick={() => setError('')}>×</button>
           </div>
         )}
+
+        {/* 対象の市町村 */}
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700, color: '#334155', marginBottom: 20 }}>
+          対象
+          <select aria-label="シミュレーションの対象" value={cityIndex} onChange={e => chooseCity(e.target.value)} style={{ padding: '6px 8px', fontWeight: 400 }}>
+            <option value="">平均的な市町村（全市町村の平均値）</option>
+            {rows.map((row, index) => <option key={index} value={index}>{String(row[idCol] ?? `${index + 1}行目`)}</option>)}
+          </select>
+        </label>
 
         {/* 変数選択 */}
         <div style={{ marginBottom: 20 }}>
@@ -197,12 +230,16 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
             {Object.keys(result.fixed_categories || {}).length > 0 && <p>固定カテゴリ: {Object.entries(result.fixed_categories).map(([k, v]) => `${k}=${v}`).join(', ')}</p>}
             {/* 予測値サマリ：目的変数の変更前・変更後・差分・変化率 */}
             <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
+              {cityRow && <div className="metric-card" style={{ flex: 1, minWidth: 140 }}>
+                <div className="metric-label">{selectedTarget}（実測値）</div>
+                <div className="metric-value" style={{ fontSize: 20 }}>{Number.isFinite(actualValue) ? fmt(actualValue, 2) : '—'}</div>
+              </div>}
               <div className="metric-card" style={{ flex: 1, minWidth: 140 }}>
-                <div className="metric-label">{selectedTarget}（変更前）</div>
+                <div className="metric-label">{selectedTarget}（変更前の予測）</div>
                 <div className="metric-value" style={{ fontSize: 20 }}>{fmt(result.baseline, 2)}</div>
               </div>
               <div className="metric-card" style={{ flex: 1, minWidth: 140 }}>
-                <div className="metric-label">{selectedTarget}（変更後）</div>
+                <div className="metric-label">{selectedTarget}（変更後の予測）</div>
                 <div className="metric-value" style={{ fontSize: 20, color: '#2563eb' }}>{fmt(result.simulation, 2)}</div>
               </div>
               <div className={`metric-card ${result.delta >= 0 ? 'good' : ''}`} style={{ flex: 1, minWidth: 140 }}>
@@ -217,7 +254,7 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
 
             {/* 動かした変数ごとの値の変化と、その変数だけを変えたときの予測への影響 */}
             <div className="work-scroll" style={{ marginBottom: 24 }}><table className="work-table">
-              <thead><tr><th>変数</th><th>変更前（平均）</th><th>変更後</th><th>値の差</th><th>{selectedTarget}への影響</th></tr></thead>
+              <thead><tr><th>変数</th><th>変更前（{cityRow ? String(cityRow[idCol]) : '平均'}）</th><th>変更後</th><th>値の差</th><th>{selectedTarget}への影響</th></tr></thead>
               <tbody>{result.marginal_effects.map(e => <tr key={e.feature}>
                 <th>{e.feature}</th><td>{fmt(e.from_val, 2)}</td><td>{fmt(e.to_val, 2)}</td><td>{signed(e.to_val - e.from_val)}</td>
                 <td style={{ color: e.effect > 0 ? '#15803d' : e.effect < 0 ? '#dc2626' : undefined }}>{signed(e.effect)}</td>
