@@ -5,6 +5,8 @@ import {
   ResponsiveContainer, Cell, ReferenceLine,
 } from 'recharts'
 
+import { changeRate, signed } from '../simulation'
+
 const API_BASE = '/api'
 const fmt = (v, d = 2) => (v != null ? Number(v).toFixed(d) : '—')
 
@@ -207,23 +209,34 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
         {result && (
           <div style={{ marginTop: 28 }}>
             {Object.keys(result.fixed_categories || {}).length > 0 && <p>固定カテゴリ: {Object.entries(result.fixed_categories).map(([k, v]) => `${k}=${v}`).join(', ')}</p>}
-            {/* 予測値サマリ */}
+            {/* 予測値サマリ：目的変数の変更前・変更後・差分・変化率 */}
             <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
               <div className="metric-card" style={{ flex: 1, minWidth: 140 }}>
-                <div className="metric-label">ベースライン予測</div>
+                <div className="metric-label">{selectedTarget}（変更前）</div>
                 <div className="metric-value" style={{ fontSize: 20 }}>{fmt(result.baseline, 2)}</div>
               </div>
               <div className="metric-card" style={{ flex: 1, minWidth: 140 }}>
-                <div className="metric-label">シミュレーション予測</div>
+                <div className="metric-label">{selectedTarget}（変更後）</div>
                 <div className="metric-value" style={{ fontSize: 20, color: '#2563eb' }}>{fmt(result.simulation, 2)}</div>
               </div>
               <div className={`metric-card ${result.delta >= 0 ? 'good' : ''}`} style={{ flex: 1, minWidth: 140 }}>
                 <div className="metric-label">差分（Δ）</div>
-                <div className="metric-value" style={{ fontSize: 20, color: result.delta >= 0 ? '#15803d' : '#dc2626' }}>
-                  {result.delta >= 0 ? '+' : ''}{fmt(result.delta, 2)}
-                </div>
+                <div className="metric-value" style={{ fontSize: 20, color: result.delta >= 0 ? '#15803d' : '#dc2626' }}>{signed(result.delta)}</div>
+              </div>
+              <div className="metric-card" style={{ flex: 1, minWidth: 140 }}>
+                <div className="metric-label">変化率</div>
+                <div className="metric-value" style={{ fontSize: 20, color: result.delta >= 0 ? '#15803d' : '#dc2626' }}>{changeRate(result.baseline, result.simulation) == null ? '—' : `${signed(changeRate(result.baseline, result.simulation))}%`}</div>
               </div>
             </div>
+
+            {/* 動かした変数ごとの値の変化と、その変数だけを変えたときの予測への影響 */}
+            <div className="work-scroll" style={{ marginBottom: 24 }}><table className="work-table">
+              <thead><tr><th>変数</th><th>変更前（平均）</th><th>変更後</th><th>値の差</th><th>{selectedTarget}への影響</th></tr></thead>
+              <tbody>{result.marginal_effects.map(e => <tr key={e.feature}>
+                <th>{e.feature}</th><td>{fmt(e.from_val, 2)}</td><td>{fmt(e.to_val, 2)}</td><td>{signed(e.to_val - e.from_val)}</td>
+                <td style={{ color: e.effect > 0 ? '#15803d' : e.effect < 0 ? '#dc2626' : undefined }}>{signed(e.effect)}</td>
+              </tr>)}</tbody>
+            </table></div>
 
             {/* 棒グラフ：変数別限界効果 */}
             <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 12 }}>
