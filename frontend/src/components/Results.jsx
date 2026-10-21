@@ -66,9 +66,6 @@ export default function Results({ results }) {
     return (
       <div className="card">
         <div className="card-header"><h2>分析結果</h2></div>
-        <div className="card-body" style={{ color: '#94a3b8', fontSize: 13, padding: '32px 24px', textAlign: 'center' }}>
-          分析を実行するとここに結果が表示されます
-        </div>
       </div>
     )
   }
@@ -97,12 +94,6 @@ export default function Results({ results }) {
                   {fmtNum(metrics.cv.r2)}
                 </div>
               </div>
-          </div>
-          <div style={{ borderTop: '1px solid #f1f5f9', marginTop: 16, paddingTop: 16 }}>
-            <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.6 }}>
-              全 {metrics.cv.n_samples} 件で Leave-One-Out 交差検証（各サンプルを1件だけ検証用に取り分け、残り全件で学習）を行い、
-              全サンプルの予測をまとめて算出した指標です。
-            </div>
           </div>
 
           {best_params && (
