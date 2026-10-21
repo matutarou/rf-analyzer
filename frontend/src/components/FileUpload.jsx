@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import axios from 'axios'
 import PyramidSheetPicker from './PyramidSheetPicker'
-import { defaultWorkbookSelection, isFactorSheet } from '../workbookSelection'
+import { defaultWorkbookSelection, isFactorSheet, shouldAutoImport } from '../workbookSelection'
 
 export default function FileUpload({ onUpload, fileInfo }) {
   const [dragOver, setDragOver] = useState(false)
@@ -27,10 +27,13 @@ export default function FileUpload({ onUpload, fileInfo }) {
       form.append('file', file)
       const { data } = await axios.post('/api/upload/sheets', form)
       const defaults = defaultWorkbookSelection(data.sheets)
+      const keys = Object.fromEntries(data.sheets.map(sheet => [sheet.name, sheet.columns[0] || '']))
+      // 既定のシートがそろっていれば選択画面を出さずに読み込み、失敗したときだけ選択画面を表示する
+      if (shouldAutoImport(defaults) && await onUpload(file, { sheetNames: defaults.sheetNames, joinKeys: keys, pyramidConfig: defaults.pyramidConfig })) return
       setWorkbook({ file, sheets: data.sheets })
       setSelected(defaults.sheetNames)
       setBaseSheet(defaults.sheetNames[0] || '')
-      setJoinKeys(Object.fromEntries(data.sheets.map(sheet => [sheet.name, sheet.columns[0] || ''])))
+      setJoinKeys(keys)
       setPyramidConfig(defaults.pyramidConfig)
     } catch (err) {
       const detail = err.response?.data?.detail

@@ -17,6 +17,12 @@ export function defaultWorkbookSelection(sheets) {
   return { sheetNames: selected, pyramidConfig: guessPyramidConfig(pyramid) }
 }
 
+// 人口関係データと想定される要因（原因）がそろっていれば、シート選択を省いて自動で読み込む
+export function shouldAutoImport(selection) {
+  const [base, factor] = selection.sheetNames
+  return selection.sheetNames.length === 2 && base === '人口関係データ' && isFactorSheet(factor)
+}
+
 export function previewSourceSheets(data) {
   const sources = data.columns.map(column => column.source_sheet).filter(Boolean)
   return [...new Set(sources.length ? sources : data.selected_sheets || [])]

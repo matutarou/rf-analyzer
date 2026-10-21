@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { defaultWorkbookSelection, featureColumns, previewSourceSheets } from './workbookSelection.js'
+import { defaultWorkbookSelection, featureColumns, previewSourceSheets, shouldAutoImport } from './workbookSelection.js'
 
 const sheet = (name, columns = ['市町村', '率']) => ({ name, rows: 2, columns })
 
@@ -79,4 +79,12 @@ test('「想定される原因」という名前のシートも説明変数候�
     { name: '想定される原因 / 所得', source_sheet: '想定される原因' },
   ]
   assert.deepEqual(featureColumns(columns), [columns[2]])
+})
+
+test('人口関係データと想定される要因（原因）がそろうときだけ自動で読み込む', () => {
+  assert.equal(shouldAutoImport(defaultWorkbookSelection([sheet('人口関係データ'), sheet('想定される原因')])), true)
+  assert.equal(shouldAutoImport(defaultWorkbookSelection([sheet('想定される要因'), sheet('人口関係データ')])), true)
+  assert.equal(shouldAutoImport(defaultWorkbookSelection([sheet('人口関係データ')])), false)
+  assert.equal(shouldAutoImport(defaultWorkbookSelection([sheet('想定される要因')])), false)
+  assert.equal(shouldAutoImport(defaultWorkbookSelection([sheet('分析')])), false)
 })
