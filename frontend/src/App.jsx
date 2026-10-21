@@ -28,7 +28,6 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
   const [name, setName] = useState(state.name || '新しい分析')
   const [fileInfo, setFileInfo] = useState(initial.file_info)
   const [populationPyramid, setPopulationPyramid] = useState(state.population_pyramid || null)
-  const [pyramidBusy, setPyramidBusy] = useState(false)
   const [selectedTarget, setSelectedTarget] = useState(state.target || '')
   const [selectedFeatures, setSelectedFeatures] = useState(state.features || [])
   const [hyperParams, setHyperParams] = useState({
@@ -235,9 +234,9 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
     if (rightPanel.current) rightPanel.current.scrollTop = state.view?.right_scroll || 0
   }, [])
   useImperativeHandle(ref, () => ({ flush: async () => {
-    if (loading || aiBusy || pyramidBusy) throw new Error('分析・AI回答の生成・データ読込が完了してから切り替えてください。')
+    if (loading || aiBusy) throw new Error('分析・AI回答の生成・データ読込が完了してから切り替えてください。')
     await writer.current.flush()
-  } }), [loading, aiBusy, pyramidBusy])
+  } }), [loading, aiBusy])
 
   return (
     <div className="page">
@@ -255,7 +254,7 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
             {assistantHidden ? 'AIアシスタントを表示' : 'AIアシスタントを隠す'}
           </button>
           {fileInfo && (
-            <button className="btn-reset" onClick={onNew} disabled={loading || aiBusy || pyramidBusy}>
+            <button className="btn-reset" onClick={onNew} disabled={loading || aiBusy}>
               新規分析
             </button>
           )}
@@ -308,12 +307,12 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
               </div>
             )}
 
-            <fieldset disabled={loading || pyramidBusy} className="analysis-fields">
+            <fieldset disabled={loading} className="analysis-fields">
             <div id="sec-upload">
               <FileUpload onUpload={handleUpload} fileInfo={fileInfo} />
             </div>
             <div id="sec-preview"><DataPreview data={fileInfo} /></div>
-            <div id="sec-pyramid"><PopulationPyramid data={populationPyramid} onChange={setPopulationPyramid} onBusyChange={setPyramidBusy} /></div>
+            <div id="sec-pyramid"><PopulationPyramid data={populationPyramid} /></div>
             <div id="sec-quality"><DataDiagnostics fileId={fileInfo?.file_id} target={selectedTarget} features={selectedFeatures} onAsk={ask} /></div>
             <div id="sec-columns">
               <ColumnSelector

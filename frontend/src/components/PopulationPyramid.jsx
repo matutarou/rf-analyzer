@@ -1,55 +1,16 @@
-import { useRef, useState } from 'react'
-import axios from 'axios'
+import { useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import PyramidSheetPicker from './PyramidSheetPicker'
-import { guessPyramidConfig, pyramidSeries } from '../populationPyramid'
+import { pyramidSeries } from '../populationPyramid'
 
-export default function PopulationPyramid({ data, onChange, onBusyChange }) {
+// 学習データと一緒に読み込んだ人口ピラミッドを表示する（データがなければ何も表示しない）
+export default function PopulationPyramid({ data }) {
   const [cityName, setCityName] = useState('')
-  const [source, setSource] = useState(null)
-  const [config, setConfig] = useState(null)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const input = useRef(null)
   const city = data?.cities.find(item => item.name === cityName) || data?.cities[0]
-  const { rows, total, limit, hasNegativeBands } = pyramidSeries(city, 'count')
-  const action = async operation => {
-    setBusy(true); onBusyChange(true); setError('')
-    try { await operation() }
-    catch (err) {
-      const detail = err.response?.data?.detail
-      setError(typeof detail === 'string' ? detail : '人口ピラミッド用データを読み込めませんでした')
-    } finally { setBusy(false); onBusyChange(false) }
-  }
-  const chooseFile = file => action(async () => {
-    const form = new FormData()
-    form.append('file', file)
-    const response = await axios.post('/api/upload/sheets', form)
-    const sheets = response.data.sheets
-    const sheet = sheets.find(item => item.name.includes('人口ピラミッド')) || sheets.find(item => item.rows > 0 && item.columns.length >= 4)
-    setSource({ file, sheets }); setConfig(guessPyramidConfig(sheet))
-  })
-  const load = () => action(async () => {
-    const form = new FormData()
-    form.append('file', source.file)
-    form.append('pyramid_config', JSON.stringify(config))
-    const response = await axios.post('/api/population-pyramid', form)
-    onChange(response.data); setCityName(''); setSource(null)
-  })
+  const { rows, total, limit } = pyramidSeries(city, 'count')
+  if (!city) return null
   return <section className="card">
-    <div className="card-header"><h2>人口ピラミッド</h2>{data && <span className="badge">{data.cities.length}市町村・5歳階級</span>}</div>
+    <div className="card-header"><h2>人口ピラミッド</h2><span className="badge">{data.cities.length}市町村・5歳階級</span></div>
     <div className="card-body">
-      <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => input.current?.click()}>{data ? '人口ピラミッド用Excelを変更' : '人口ピラミッド用Excelを追加'}</button>
-      <input ref={input} type="file" accept=".xlsx" hidden disabled={busy} onChange={event => { const file = event.target.files[0]; event.target.value = ''; if (file) chooseFile(file) }} />
-      {busy && <p role="status">人口データを読み込んでいます...</p>}
-      {error && <p role="alert" className="work-warning">{error}</p>}
-      {data?.warnings?.map((warning, index) => <p key={index} className="work-warning">{warning}</p>)}
-      {source && <div>
-        <p>{source.file.name}</p>
-        <PyramidSheetPicker sheets={source.sheets} config={config} onChange={setConfig} />
-        <div className="btn-group"><button type="button" className="btn btn-secondary" disabled={busy} onClick={() => setSource(null)}>キャンセル</button><button type="button" className="btn btn-primary" disabled={busy || !config} onClick={load}>人口ピラミッドを表示</button></div>
-      </div>}
-      {city ? <>
         <div className="pyramid-controls">
           <label>市町村 <select aria-label="人口ピラミッドの市町村" value={city.name} onChange={event => setCityName(event.target.value)}>{data.cities.map(item => <option key={item.name} value={item.name}>{item.name}</option>)}</select></label>
         </div>
@@ -67,9 +28,7 @@ export default function PopulationPyramid({ data, onChange, onBusyChange }) {
             </BarChart>
           </ResponsiveContainer>
         </div>
-        {hasNegativeBands && <p className="work-warning">集計人口がマイナスの階級はグラフ上のみ0として表示します。人数表には実際の集計値を表示しています。</p>}
         <details><summary>人数の表を表示</summary><div className="work-scroll"><table className="work-table"><thead><tr><th>年齢階級</th><th>男性（人）</th><th>女性（人）</th></tr></thead><tbody>{[...city.bands].reverse().map(band => <tr key={band.age_start}><th>{band.age_start >= 100 ? '100歳以上' : `${band.age_start}〜${band.age_start + 4}歳`}</th><td>{band.male.toLocaleString()}</td><td>{band.female.toLocaleString()}</td></tr>)}</tbody></table></div></details>
-      </> : null}
     </div>
   </section>
 }
