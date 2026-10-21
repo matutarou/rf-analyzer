@@ -238,11 +238,9 @@ def create_router(uploaded, trained_models, artifacts):
         df = data(req.file_id)
         available = df.select_dtypes(include="number").columns.tolist()
         names = list(dict.fromkeys(req.features + ([req.target] if req.target else [])))
-        truncated = not names and len(available) > 40
+        # 変数の指定がなければ全数値列を対象にする
         if not names:
-            names = available[:40]
-        if len(names) > 40:
-            raise HTTPException(400, "相関表示は40変数以内で選択してください")
+            names = available
         if any(c not in df.columns for c in names):
             raise HTTPException(400, "存在しない変数です")
         numeric = df[names].select_dtypes(include="number").replace([np.inf, -np.inf], np.nan)
@@ -254,7 +252,7 @@ def create_router(uploaded, trained_models, artifacts):
         return {"pairs": sorted(pairs, key=lambda p: abs(p['r'] or 0), reverse=True),
                 "excluded": [n for n in names if n not in numeric.columns],
                 "variables": list(numeric.columns), "matrix": matrix, "counts": counts.to_numpy().tolist(),
-                "available": available, "truncated": truncated}
+                "available": available}
 
     def persist(req, project_id, create_only=False):
         df = data(req.file_id) if req.file_id else None

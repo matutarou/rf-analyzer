@@ -314,6 +314,7 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
             </div>
             <div id="sec-preview"><DataPreview data={fileInfo} /></div>
             <div id="sec-pyramid"><PopulationPyramid data={populationPyramid} onChange={setPopulationPyramid} onBusyChange={setPyramidBusy} /></div>
+            <div id="sec-quality"><DataDiagnostics fileId={fileInfo?.file_id} target={selectedTarget} features={selectedFeatures} onAsk={ask} /></div>
             <div id="sec-columns">
               <ColumnSelector
                 key={fileInfo?.file_id || 'empty'}
@@ -324,7 +325,6 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
                 onProceed={() => scrollTo(paramsRef)}
               />
             </div>
-            <div id="sec-quality"><DataDiagnostics fileId={fileInfo?.file_id} target={selectedTarget} features={selectedFeatures} onAsk={ask} /></div>
 
             <div id="sec-params" ref={paramsRef}>
               <HyperParams
