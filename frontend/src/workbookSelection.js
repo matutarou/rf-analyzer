@@ -23,11 +23,6 @@ export function shouldAutoImport(selection) {
   return selection.sheetNames.length === 2 && base === '人口関係データ' && isFactorSheet(factor)
 }
 
-export function previewSourceSheets(data) {
-  const sources = data.columns.map(column => column.source_sheet).filter(Boolean)
-  return [...new Set(sources.length ? sources : data.selected_sheets || [])]
-}
-
 export function featureColumns(columns) {
   const candidates = columns.slice(1)
   return columns.some(column => isFactorSheet(column.source_sheet))

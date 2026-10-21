@@ -107,8 +107,6 @@ export default function FileUpload({ onUpload, fileInfo }) {
         {workbook && <fieldset disabled={inspecting} className="sheet-picker">
           <legend>Excelシートの選択</legend>
           <p>{workbook.file.name}</p>
-          <p>1シートだけ読み込むか、複数シートを共通のキーで横結合できます。</p>
-          <p>「人口関係データ」と「想定される要因（原因）」がある場合は、両方を初期選択します。市町村名などの結合キーを確認して読み込むと、結合したデータをプレビューできます。説明変数は「想定される要因（原因）」から選択し、「人口ピラミッド」は可視化専用です。</p>
           <div className="work-scroll"><table className="work-table">
             <thead><tr><th>使用</th><th>シート</th><th>行 × 列</th>{selected.length > 1 && <th>結合キー</th>}</tr></thead>
             <tbody>{workbook.sheets.map(sheet => <tr key={sheet.name}>
@@ -129,7 +127,6 @@ export default function FileUpload({ onUpload, fileInfo }) {
             <label>基準シート <select aria-label="基準シート" value={baseSheet} onChange={event => setBaseSheet(event.target.value)}>
               {selected.map(name => <option key={name} value={name}>{name}</option>)}
             </select></label>
-            <p>基準シートの行を維持して結合します。追加列にはシート名が付きます。キーは各シートで空欄・重複がない列を選んでください。一致しない行の追加列は欠損値になります。</p>
           </>}
           <div className="btn-group">
             <button type="button" className="btn btn-secondary" onClick={() => setWorkbook(null)}>キャンセル</button>

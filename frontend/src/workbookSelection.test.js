@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { defaultWorkbookSelection, featureColumns, previewSourceSheets, shouldAutoImport } from './workbookSelection.js'
+import { defaultWorkbookSelection, featureColumns, shouldAutoImport } from './workbookSelection.js'
 
 const sheet = (name, columns = ['市町村', '率']) => ({ name, rows: 2, columns })
 
@@ -18,15 +18,6 @@ test('専用シートが片方だけの場合や空の場合は有効なシー�
   assert.deepEqual(defaultWorkbookSelection([sheet('人口関係データ')]).sheetNames, ['人口関係データ'])
   assert.deepEqual(defaultWorkbookSelection([sheet('想定される要因')]).sheetNames, ['想定される要因'])
   assert.deepEqual(defaultWorkbookSelection([sheet('人口関係データ'), { ...sheet('想定される要因'), rows: 0 }]).sheetNames, ['人口関係データ'])
-})
-
-test('結合プレビューの出典は保存・復元した列情報から重複なく取得する', () => {
-  const columns = [
-    { source_sheet: '人口関係データ' }, { source_sheet: '人口関係データ' }, { source_sheet: '想定される要因' },
-  ]
-  assert.deepEqual(previewSourceSheets({ columns }), ['人口関係データ', '想定される要因'])
-  assert.deepEqual(previewSourceSheets({ columns: [{}], selected_sheets: ['分析'] }), ['分析'])
-  assert.deepEqual(previewSourceSheets({ columns: [{}] }), [])
 })
 
 test('想定される要因を学習用、人口ピラミッドを可視化用に初期選択する', () => {

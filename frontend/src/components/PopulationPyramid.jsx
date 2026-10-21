@@ -69,7 +69,7 @@ export default function PopulationPyramid({ data, onChange, onBusyChange }) {
         </div>
         {hasNegativeBands && <p className="work-warning">集計人口がマイナスの階級はグラフ上のみ0として表示します。人数表には実際の集計値を表示しています。</p>}
         <details><summary>人数の表を表示</summary><div className="work-scroll"><table className="work-table"><thead><tr><th>年齢階級</th><th>男性（人）</th><th>女性（人）</th></tr></thead><tbody>{[...city.bands].reverse().map(band => <tr key={band.age_start}><th>{band.age_start >= 100 ? '100歳以上' : `${band.age_start}〜${band.age_start + 4}歳`}</th><td>{band.male.toLocaleString()}</td><td>{band.female.toLocaleString()}</td></tr>)}</tbody></table></div></details>
-      </> : <p>人口ピラミッド用データを読み込むと、市町村別のグラフを表示できます。</p>}
+      </> : null}
     </div>
   </section>
 }

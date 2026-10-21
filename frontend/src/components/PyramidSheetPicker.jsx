@@ -9,7 +9,6 @@ export default function PyramidSheetPicker({ sheets, config, onChange }) {
       {sheets.map(item => <option key={item.name} value={item.name} disabled={!item.rows || item.columns.length < 4}>{item.name}</option>)}
     </select></label>
     {sheet && <>
-      <p>市町村・性別・各歳の年齢・人口が並ぶ縦長データを使用します。このシートは分析用に結合しません。</p>
       <div className="pyramid-columns">{[
         ['municipality_column', '市町村'], ['sex_column', '性別'], ['age_column', '年齢'], ['population_column', '人口'],
       ].map(([key, label]) => <label key={key}>{label}の列 <select aria-label={`人口ピラミッドの${label}列`} value={config[key]} onChange={event => onChange({ ...config, [key]: event.target.value })}>
