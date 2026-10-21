@@ -39,7 +39,6 @@ export default function PopulationPyramid({ data, onChange, onBusyChange }) {
   return <section className="card">
     <div className="card-header"><h2>人口ピラミッド</h2>{data && <span className="badge">{data.cities.length}市町村・5歳階級</span>}</div>
     <div className="card-body">
-      <p>分析用データとは別に表示します。Excelの「人口ピラミッド」用シートを指定するか、ここから追加できます。</p>
       <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => input.current?.click()}>{data ? '人口ピラミッド用Excelを変更' : '人口ピラミッド用Excelを追加'}</button>
       <input ref={input} type="file" accept=".xlsx" hidden disabled={busy} onChange={event => { const file = event.target.files[0]; event.target.value = ''; if (file) chooseFile(file) }} />
       {busy && <p role="status">人口データを読み込んでいます...</p>}
@@ -55,7 +54,6 @@ export default function PopulationPyramid({ data, onChange, onBusyChange }) {
           <label>市町村 <select aria-label="人口ピラミッドの市町村" value={city.name} onChange={event => setCityName(event.target.value)}>{data.cities.map(item => <option key={item.name} value={item.name}>{item.name}</option>)}</select></label>
         </div>
         <h3>{city.name}の人口ピラミッド</h3>
-        <p>収録人口合計: {total.toLocaleString()}人 · 出典シート: {data.sheet_name}</p>
         <div className="pyramid-chart" role="img" aria-label={`${city.name}の人口ピラミッド。男性が左、女性が右。収録人口合計${total.toLocaleString()}人。`}>
           <ResponsiveContainer width="100%" height={520}>
             <BarChart data={rows} layout="vertical" stackOffset="sign" margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
@@ -69,7 +67,6 @@ export default function PopulationPyramid({ data, onChange, onBusyChange }) {
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <p>男性が左、女性が右です。未収録の階級・性別は0として表示します。</p>
         {hasNegativeBands && <p className="work-warning">集計人口がマイナスの階級はグラフ上のみ0として表示します。人数表には実際の集計値を表示しています。</p>}
         <details><summary>人数の表を表示</summary><div className="work-scroll"><table className="work-table"><thead><tr><th>年齢階級</th><th>男性（人）</th><th>女性（人）</th></tr></thead><tbody>{[...city.bands].reverse().map(band => <tr key={band.age_start}><th>{band.age_start >= 100 ? '100歳以上' : `${band.age_start}〜${band.age_start + 4}歳`}</th><td>{band.male.toLocaleString()}</td><td>{band.female.toLocaleString()}</td></tr>)}</tbody></table></div></details>
       </> : <p>人口ピラミッド用データを読み込むと、市町村別のグラフを表示できます。</p>}
