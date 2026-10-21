@@ -1,6 +1,6 @@
 import { featureColumns, targetColumns } from '../workbookSelection'
 
-export default function ColumnSelector({ columns, onSelect, onProceed, initialTarget = '', initialFeatures = [] }) {
+export default function ColumnSelector({ columns, onSelect, initialTarget = '', initialFeatures = [], nTrials, onTrialsChange, canAnalyze = false, onAnalyze }) {
   const target = initialTarget
   const features = initialFeatures
   const setFeatures = value => onSelect(target, typeof value === 'function' ? value(features) : value)
@@ -35,6 +35,7 @@ export default function ColumnSelector({ columns, onSelect, onProceed, initialTa
   const clearFeatures = () => setFeatures([])
 
   const canProceed = target && features.length > 0
+  const trialsValid = Number.isInteger(Number(nTrials)) && Number(nTrials) >= 1 && Number(nTrials) <= 100
 
   return (
     <div className="card">
@@ -117,13 +118,18 @@ export default function ColumnSelector({ columns, onSelect, onProceed, initialTa
           </div>
         </div>
 
-        <div className="btn-group">
+        {/* Optunaの試行回数を設定して、そのまま分析を実行する */}
+        <div className="btn-group" style={{ alignItems: 'center' }}>
+          <label style={{ fontSize: 12, color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>
+            試行回数
+            <input type="number" min={1} max={100} step={1} value={nTrials} onChange={(e) => onTrialsChange(e.target.value)} style={{ width: 72, padding: '6px 8px' }} />
+          </label>
           <button
             className="btn btn-primary"
-            disabled={!canProceed}
-            onClick={onProceed}
+            disabled={!canProceed || !canAnalyze || !trialsValid}
+            onClick={onAnalyze}
           >
-            次へ：パラメータ設定
+            分析を実行
           </button>
         </div>
       </div>

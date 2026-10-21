@@ -3,7 +3,6 @@ import axios from 'axios'
 import FileUpload from './components/FileUpload'
 import DataPreview from './components/DataPreview'
 import ColumnSelector from './components/ColumnSelector'
-import HyperParams from './components/HyperParams'
 import Results from './components/Results'
 import PredictForm from './components/PredictForm'
 import AssistantPanel from './components/AssistantPanel'
@@ -63,7 +62,6 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
     if (questionRequest) rightPanel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [questionRequest])
 
-  const paramsRef = useRef(null)
 
   // 分割パネルのドラッグ状態
   const [leftPct, setLeftPct] = useState(state.view?.left_pct || 65)
@@ -96,10 +94,6 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
     document.body.style.cursor = 'col-resize'
     document.body.style.userSelect = 'none'
   }, [])
-
-  const scrollTo = (ref) => {
-    setTimeout(() => ref?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
-  }
 
   const handleUpload = useCallback(async (file, options = {}) => {
     setLoading(true)
@@ -276,7 +270,6 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
               { id: 'sec-quality', label: '変数間の相関' },
               { id: 'sec-history', label: '保存・比較' },
               { id: 'sec-columns',  label: 'カラム選択' },
-              { id: 'sec-params',   label: 'パラメータ' },
               { id: 'sec-results',  label: '分析結果' },
               { id: 'sec-simulate', label: 'シミュレーション' },
             ].map(({ id, label }) => (
@@ -319,19 +312,10 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
                 initialFeatures={selectedFeatures}
                 columns={fileInfo?.columns ?? []}
                 onSelect={handleColumnSelect}
-                onProceed={() => scrollTo(paramsRef)}
-              />
-            </div>
-
-            <div id="sec-params" ref={paramsRef}>
-              <HyperParams
-                key={fileInfo?.file_id || 'empty'}
-                defaultParams={hyperParams}
-                onChange={value => { setHyperParams(value); setResults(null); setTrainedParams(null); setAi({ explanations: [], summary: '' }); setQuestionRequest(null); setChat(c => ({ ...c, screen_context: '' })) }}
-                onSubmit={handleAnalyze}
-                dataRows={fileInfo?.rows}
-                featureCount={selectedFeatures.length || (fileInfo?.columns.length ?? 2) - 1}
+                nTrials={hyperParams.n_trials}
+                onTrialsChange={value => { setHyperParams({ ...hyperParams, n_trials: value }); setResults(null); setTrainedParams(null); setAi({ explanations: [], summary: '' }); setQuestionRequest(null); setChat(c => ({ ...c, screen_context: '' })) }}
                 canAnalyze={!!(fileInfo && !loading && selectedTarget && selectedFeatures.length > 0)}
+                onAnalyze={() => handleAnalyze({ optimize: true, optimize_metric: 'r2', n_trials: Number(hyperParams.n_trials), shap_top_n: selectedFeatures.length, importance_top_n: selectedFeatures.length })}
               />
             </div>
 
