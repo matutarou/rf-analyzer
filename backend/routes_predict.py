@@ -17,6 +17,28 @@ from state import uploaded_data, trained_models, model_artifacts
 
 router = APIRouter(prefix="/api")
 
+# 対象の行を除いて学習したモデルのキャッシュ（(file_id, model_id, 行) -> (model, label_encoders)）
+holdout_models: dict[tuple, tuple] = {}
+HOLDOUT_CACHE_SIZE = 100
+
+
+def holdout_model(file_id, artifact, row):
+    """対象の行を除いたデータで、保存済みモデルと同じパラメータのモデルを学習する"""
+    key = (file_id, artifact.metadata["id"], row)
+    if key in holdout_models:
+        return holdout_models[key]
+    df = uploaded_data[file_id]
+    if not 0 <= row < len(df):
+        raise HTTPException(400, "シミュレーションの対象行が範囲外です")
+    X, y, encoders, _ = preprocess_dataframe(df.drop(df.index[row]), list(artifact.metadata["features"]), artifact.metadata["target"])
+    if len(X) < 2:
+        raise HTTPException(400, "対象を除くと学習データが足りません")
+    model = RandomForestRegressor(**artifact.metadata["trained_params"], n_jobs=-1).fit(X, y)
+    while len(holdout_models) >= HOLDOUT_CACHE_SIZE:
+        holdout_models.pop(next(iter(holdout_models)))
+    holdout_models[key] = (model, encoders)
+    return holdout_models[key]
+
 
 @router.post("/predict_marginal_fast")
 async def predict_marginal_fast(req: PredictMarginalRequest):
@@ -32,6 +54,11 @@ async def predict_marginal_fast(req: PredictMarginalRequest):
         raise HTTPException(409, "選択中の分析条件とモデルが一致しません。履歴を開き直すか再分析してください。")
     if not set(req.changed_features).issubset(feature_columns):
         raise HTTPException(400, "モデルに含まれない変数が指定されています")
+    if req.exclude_row is not None:
+        # 対象の市町村を学習に含めると、その実測値を覚えたモデルで予測することになるため除外する
+        if req.file_id not in uploaded_data:
+            raise HTTPException(404, "データが見つかりません．再アップロードしてください")
+        model, label_encoders = holdout_model(req.file_id, artifact, req.exclude_row)
 
     def build_input(values: dict) -> list:
         row = []
@@ -39,7 +66,9 @@ async def predict_marginal_fast(req: PredictMarginalRequest):
             default = label_encoders[col].classes_[0] if col in label_encoders else 0
             v = values.get(col, req.baseline_input.get(col, default))
             if col in label_encoders:
-                v = label_encoders[col].transform([str(v)])[0]
+                encoder = label_encoders[col]
+                # 除外後の学習データにないカテゴリは先頭のカテゴリとして扱う
+                v = encoder.transform([str(v) if str(v) in encoder.classes_ else encoder.classes_[0]])[0]
             row.append(float(v))
         return row
 

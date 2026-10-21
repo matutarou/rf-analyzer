@@ -56,7 +56,7 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
   const [error, setError] = useState('')
   const debounceRef = useRef(null)
 
-  const simulate = async (checked, sliders, base = baselineValues) => {
+  const simulate = async (checked, sliders, base = baselineValues, index = cityIndex) => {
     const changed = [...checked]
     if (changed.length === 0) { setResult(null); return }
 
@@ -71,6 +71,8 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
         baseline_input: base,
         sim_input: simInput,
         changed_features: changed,
+        // 対象の市町村を除いて学習したモデルで予測する（自分の実測値を覚えたモデルを使わない）
+        exclude_row: index === '' ? null : Number(index),
       })
       setResult(res.data)
       setError('')
@@ -82,9 +84,9 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
     }
   }
 
-  const scheduleSimulate = (checked, sliders, base = baselineValues) => {
+  const scheduleSimulate = (checked, sliders, base = baselineValues, index = cityIndex) => {
     clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => simulate(checked, sliders, base), 300)
+    debounceRef.current = setTimeout(() => simulate(checked, sliders, base, index), 300)
   }
 
   // 市町村を切り替えたら、スライダーをその市町村の値に戻して計算し直す
@@ -92,7 +94,7 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
     setCityIndex(index)
     const base = baselineFor(numericFeatures, meanValues, index === '' ? null : rows[Number(index)])
     setSliderValues({ ...base })
-    scheduleSimulate(checkedFeatures, base, base)
+    scheduleSimulate(checkedFeatures, base, base, index)
   }
 
   const toggleFeature = (f) => {
@@ -124,7 +126,7 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
         const index = loaded.length ? '0' : ''
         const base = baselineFor(numericFeatures, meanValues, loaded.length ? loaded[0] : null)
         setCityIndex(index); setSliderValues({ ...base })
-        scheduleSimulate(checkedFeatures, base, base)
+        scheduleSimulate(checkedFeatures, base, base, index)
       })
       .catch(() => { if (active) { setRows([]); scheduleSimulate(checkedFeatures, sliderValues) } })
     return () => { active = false }

@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from sklearn.ensemble import RandomForestRegressor
 
 import main
+import routes_predict
 import model_store
 import workspace
 
@@ -50,6 +51,24 @@ class ModelHistoryTest(unittest.TestCase):
             'model_id': self.results['model_id'], 'baseline_input': {'x': 4},
             'sim_input': {'x': 6}, 'changed_features': ['x'], **extra,
         })
+
+    def test_simulation_excludes_target_row_from_training(self):
+        full = self.predict(self.file_id).json()
+        response = self.predict(self.file_id, exclude_row=3)
+        self.assertEqual(response.status_code, 200, response.text)
+        key = (self.file_id, self.results['model_id'], 3)
+        model, _ = routes_predict.holdout_models[key]
+        self.assertEqual(model.n_features_in_, 2)
+        self.assertEqual(len(model.estimators_), 3)
+        self.assertEqual(model.random_state, 19)
+        # 除外した行がない学習データ（11件）で学習したモデルになっている
+        self.assertEqual(model.estimators_[0].tree_.weighted_n_node_samples[0], 11)
+        self.assertIn('baseline', response.json())
+        # 2回目はキャッシュを使い、再学習しない
+        with patch.object(RandomForestRegressor, 'fit', side_effect=AssertionError('再学習は禁止')):
+            self.assertEqual(self.predict(self.file_id, exclude_row=3).json(), response.json())
+        self.assertEqual(self.predict(self.file_id, exclude_row=99).status_code, 400)
+        self.assertEqual(self.predict(self.file_id).json(), full)
 
     def test_restore_without_training_and_identical_predictions(self):
         expected = self.predict(self.file_id).json()

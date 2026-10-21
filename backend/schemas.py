@@ -39,6 +39,8 @@ class PredictMarginalRequest(BaseModel):
     max_features: str | float | int | None = None
     random_state: int = 77
     model_id: Optional[str] = None
+    # シミュレーション対象の行（0始まり）。指定するとその行を除いて学習したモデルで予測する
+    exclude_row: Optional[int] = None
 
 
 
