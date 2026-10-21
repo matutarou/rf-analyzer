@@ -41,7 +41,7 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
     })
   )
 
-  // 対象の市町村（空なら全市町村の平均値を基準にする）
+  // 対象の市町村（行データを取得できるまでは全市町村の平均値を仮の基準にする）
   const idCol = fileInfo.columns[0]?.name
   const [rows, setRows] = useState([])
   const [cityIndex, setCityIndex] = useState('')
@@ -117,16 +117,22 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
     setError('')
   }
 
-  useEffect(() => {
-    scheduleSimulate(checkedFeatures, sliderValues)
-    return () => clearTimeout(debounceRef.current)
-  }, [])
+  useEffect(() => () => clearTimeout(debounceRef.current), [])
 
+  // 行データを取得したら先頭の市町村を対象にする。取得できないときは平均値で計算する
   useEffect(() => {
     let active = true
     axios.get(`${API_BASE}/rows/${fileInfo.file_id}`)
-      .then(res => { if (active) setRows(res.data.rows) })
-      .catch(() => { if (active) setRows([]) })
+      .then(res => {
+        if (!active) return
+        const loaded = res.data.rows
+        setRows(loaded)
+        const index = loaded.length ? '0' : ''
+        const base = baselineFor(numericFeatures, meanValues, loaded.length ? loaded[0] : null)
+        setCityIndex(index); setSliderValues({ ...base })
+        scheduleSimulate(checkedFeatures, base, base)
+      })
+      .catch(() => { if (active) { setRows([]); scheduleSimulate(checkedFeatures, sliderValues) } })
     return () => { active = false }
   }, [fileInfo.file_id])
 
@@ -145,13 +151,12 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
         )}
 
         {/* 対象の市町村 */}
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700, color: '#334155', marginBottom: 20 }}>
+        {rows.length > 0 && <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700, color: '#334155', marginBottom: 20 }}>
           対象
           <select aria-label="シミュレーションの対象" value={cityIndex} onChange={e => chooseCity(e.target.value)} style={{ padding: '6px 8px', fontWeight: 400 }}>
-            <option value="">平均的な市町村（全市町村の平均値）</option>
             {rows.map((row, index) => <option key={index} value={index}>{String(row[idCol] ?? `${index + 1}行目`)}</option>)}
           </select>
-        </label>
+        </label>}
 
         {/* 変数選択 */}
         <div style={{ marginBottom: 20 }}>
