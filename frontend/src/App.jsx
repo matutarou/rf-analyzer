@@ -335,7 +335,7 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
               />
             </div>
 
-            <div id="sec-results"><div className="work-toolbar">{['R²', '特徴量重要度', 'SHAP'].map(topic => <IconButton key={topic} title={`${topic}について質問`} onClick={() => ask(`現在の分析結果の${topic}を説明してください。`, `選択した表示: ${topic}`)}><MessageCircleQuestion size={16} /><span>{topic}</span></IconButton>)}</div><Results results={results} /></div>
+            <div id="sec-results"><div className="work-toolbar">{['R²', 'SHAP'].map(topic => <IconButton key={topic} title={`${topic}について質問`} onClick={() => ask(`現在の分析結果の${topic}を説明してください。`, `選択した表示: ${topic}`)}><MessageCircleQuestion size={16} /><span>{topic}</span></IconButton>)}</div><Results results={results} /></div>
 
             <div id="sec-simulate">
               {results && !trainedParams && initial.model_status?.reason && <p className="work-warning" role="status">{initial.model_status.reason}</p>}

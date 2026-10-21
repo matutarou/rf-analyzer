@@ -29,7 +29,7 @@ function DragScroll({ children }) {
   )
 }
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   ScatterChart, Scatter, ReferenceLine, Cell,
 } from 'recharts'
 
@@ -54,12 +54,10 @@ const SHAP_HIGH_COLOR = '#ef4444'
 const SHAP_LOW_COLOR  = '#3b82f6'
 
 export default function Results({ results }) {
-  const [importanceTopN, setImportanceTopN] = useState(10)
   const [shapTopN, setShapTopN] = useState(10)
 
   useEffect(() => {
     if (results) {
-      setImportanceTopN(Math.min(10, results.feature_importance.length))
       setShapTopN(Math.min(10, results.shap?.importance.length ?? 10))
     }
   }, [results])
@@ -75,15 +73,10 @@ export default function Results({ results }) {
     )
   }
 
-  const { metrics, feature_importance, data_info, best_params, shap } = results
+  const { metrics, best_params, shap } = results
 
   const r2Mean = metrics.cv.r2
   const r2Class = r2Mean >= 0.7 ? 'good' : r2Mean >= 0.4 ? 'warn' : ''
-
-  // 特徴量重要度の色
-  const barColors = ['#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe']
-
-  const visibleImportance = feature_importance.slice(0, importanceTopN)
 
   // 特徴量名の最大文字数からYAxis幅を動的計算（日本語は1文字約13px）
   const calcYWidth = (names) => Math.max(80, Math.max(...names.map(n => n.length)) * 13 + 16)
@@ -135,52 +128,6 @@ export default function Results({ results }) {
             </div>
           )}
         </div>
-      </div>
-
-      {/* 特徴量重要度 */}
-      <div className="chart-card" style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <h3 style={{ margin: 0 }}>特徴量重要度 (Feature Importance)</h3>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <label style={{ fontSize: 11, color: '#64748b' }}>表示件数</label>
-            <input
-              type="number"
-              min={1}
-              max={feature_importance.length}
-              value={importanceTopN}
-              onChange={(e) => setImportanceTopN(Math.min(Math.max(1, Number(e.target.value)), feature_importance.length))}
-              style={{ width: 56, padding: '3px 6px', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 12, fontFamily: 'var(--font-mono)' }}
-            />
-            <span style={{ fontSize: 11, color: '#94a3b8' }}>/ {feature_importance.length}</span>
-          </div>
-        </div>
-        <DragScroll>
-            <ResponsiveContainer width="100%" height={Math.max(250, visibleImportance.length * 36)}>
-              <BarChart
-                data={visibleImportance}
-                layout="vertical"
-                margin={{ top: 4, right: 20, left: 10, bottom: 4 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis type="number" tick={{ fontSize: 11 }} />
-                <YAxis
-                  dataKey="feature"
-                  type="category"
-                  width={calcYWidth(visibleImportance.map(d => d.feature))}
-                  tick={{ fontSize: 11 }}
-                />
-                <Tooltip
-                  formatter={(v) => fmtNum(v)}
-                  contentStyle={{ fontSize: 12, borderRadius: 8 }}
-                />
-                <Bar dataKey="importance" radius={[0, 4, 4, 0]}>
-                  {visibleImportance.map((_, i) => (
-                    <Cell key={i} fill={barColors[Math.min(i, barColors.length - 1)]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-        </DragScroll>
       </div>
 
       {/* SHAP */}
