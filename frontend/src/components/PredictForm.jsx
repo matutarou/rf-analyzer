@@ -5,7 +5,7 @@ import {
   ResponsiveContainer, Cell, ReferenceLine,
 } from 'recharts'
 
-import { changeRate, signed } from '../simulation'
+import { changeRate, signed, sortByShap } from '../simulation'
 
 const API_BASE = '/api'
 const fmt = (v, d = 2) => (v != null ? Number(v).toFixed(d) : '—')
@@ -22,7 +22,7 @@ function sliderStep(min, max) {
   return Math.round(range / 100)
 }
 
-export default function PredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperParams, modelId }) {
+export default function PredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperParams, modelId, shapImportance }) {
   if (!fileInfo || !selectedTarget || selectedFeatures.length === 0 || !hyperParams) {
     return (
       <div className="card" style={{ marginTop: 20 }}>
@@ -34,12 +34,13 @@ export default function PredictForm({ fileInfo, selectedTarget, selectedFeatures
     )
   }
 
-  return <ActivePredictForm key={JSON.stringify([fileInfo.file_id, selectedTarget, selectedFeatures, hyperParams, modelId])} fileInfo={fileInfo} selectedTarget={selectedTarget} selectedFeatures={selectedFeatures} hyperParams={hyperParams} modelId={modelId} />
+  return <ActivePredictForm key={JSON.stringify([fileInfo.file_id, selectedTarget, selectedFeatures, hyperParams, modelId])} fileInfo={fileInfo} selectedTarget={selectedTarget} selectedFeatures={selectedFeatures} hyperParams={hyperParams} modelId={modelId} shapImportance={shapImportance} />
 }
 
-function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperParams, modelId }) {
+function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperParams, modelId, shapImportance }) {
   const colMap = Object.fromEntries(fileInfo.columns.map(c => [c.name, c]))
-  const numericFeatures = selectedFeatures.filter(f => /^(u?int|float|Float|Int|bool)/i.test(colMap[f]?.dtype || ''))
+  // 選択肢はSHAPの大きい順に表示する（APIに送る変数の順序はモデルに合わせてselectedFeaturesのまま）
+  const numericFeatures = sortByShap(selectedFeatures, shapImportance).filter(f => /^(u?int|float|Float|Int|bool)/i.test(colMap[f]?.dtype || ''))
 
   const baselineValues = Object.fromEntries(
     numericFeatures.map(f => {

@@ -9,3 +9,12 @@ export function signed(value, digits = 2) {
   if (!Number.isFinite(value)) return '—'
   return `${value > 0 ? '+' : ''}${value.toFixed(digits)}`
 }
+
+// シミュレーションの変数をSHAP（平均|SHAP|）の大きい順に並べる。SHAPにない変数は元の順で後ろに置く
+export function sortByShap(features, shapImportance = []) {
+  const rank = new Map(shapImportance.map((item, index) => [item.feature, index]))
+  return features
+    .map((feature, index) => ({ feature, index, rank: rank.has(feature) ? rank.get(feature) : Infinity }))
+    .sort((a, b) => a.rank - b.rank || a.index - b.index)
+    .map(item => item.feature)
+}
