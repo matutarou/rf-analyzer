@@ -107,15 +107,16 @@ export default function Results({ results }) {
               </div>
               <div className="metrics-grid">
                 {[
-                  { label: 'n_estimators',     value: best_params.n_estimators },
-                  { label: 'max_depth',         value: best_params.max_depth },
-                  { label: 'min_samples_split', value: best_params.min_samples_split },
-                  { label: 'min_samples_leaf',  value: best_params.min_samples_leaf },
-                  { label: 'max_features',      value: best_params.max_features ?? '全特徴量' },
-                ].map(({ label, value }) => (
+                  { label: 'n_estimators',      value: best_params.n_estimators, desc: '決定木の本数。多いほど予測が安定するが計算が遅くなる' },
+                  { label: 'max_depth',         value: best_params.max_depth, desc: '木の深さの上限。深いほど細かく分けるが、学習データに合わせすぎやすい' },
+                  { label: 'min_samples_split', value: best_params.min_samples_split, desc: '枝を分けるのに必要な最小件数。大きいほど木が単純になる' },
+                  { label: 'min_samples_leaf',  value: best_params.min_samples_leaf, desc: '末端（葉）に残す最小件数。大きいほど予測がなめらかになる' },
+                  { label: 'max_features',      value: best_params.max_features ?? '全特徴量', desc: '分岐ごとに候補にする説明変数の数。sqrt＝変数の数の平方根、log2＝log2(変数の数)、全特徴量＝すべて' },
+                ].map(({ label, value, desc }) => (
                   <div key={label} className="metric-card">
                     <div className="metric-label">{label}</div>
                     <div className="metric-value" style={{ fontSize: 18 }}>{value}</div>
+                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 4, lineHeight: 1.5 }}>{desc}</div>
                   </div>
                 ))}
               </div>
