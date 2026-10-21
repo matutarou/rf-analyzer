@@ -48,11 +48,6 @@ function shapColor(norm) {
 }
 
 const fmtNum = (v, d = 4) => (v != null ? Number(v).toFixed(d) : '—')
-const fmtSig = (v, sig = 3) => {
-  if (v == null) return '—'
-  return parseFloat(Number(v).toPrecision(sig)).toString()
-}
-
 const METRIC_LABEL = { r2: 'R²', rmse: 'RMSE', mae: 'MAE' }
 
 const SHAP_HIGH_COLOR = '#ef4444'
@@ -103,32 +98,12 @@ export default function Results({ results }) {
         </div>
         <div className="card-body">
           <div className="metrics-grid">
-            {(!best_params || best_params.metric === 'r2') && (
               <div className={`metric-card ${r2Class}`}>
-                <div className="metric-label">R²</div>
+                <div className="metric-label">決定係数 R²</div>
                 <div className="metric-value">
                   {fmtNum(metrics.cv.r2)}
                 </div>
               </div>
-            )}
-            {(!best_params || best_params.metric === 'rmse') && (
-              <div className="metric-card">
-                <div className="metric-label">RMSE</div>
-                <div className="metric-value">{fmtSig(metrics.cv.rmse)}</div>
-              </div>
-            )}
-            {(!best_params || best_params.metric === 'mae') && (
-              <div className="metric-card">
-                <div className="metric-label">MAE</div>
-                <div className="metric-value">{fmtSig(metrics.cv.mae)}</div>
-              </div>
-            )}
-            {metrics.cv.mape != null && !best_params && (
-              <div className="metric-card">
-                <div className="metric-label">MAPE</div>
-                <div className="metric-value">{fmtSig(metrics.cv.mape * 100)}%</div>
-              </div>
-            )}
           </div>
           <div style={{ borderTop: '1px solid #f1f5f9', marginTop: 16, paddingTop: 16 }}>
             <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.6 }}>

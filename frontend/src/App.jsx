@@ -10,6 +10,7 @@ import TestPredict from './components/TestPredict'
 import AssistantPanel from './components/AssistantPanel'
 import WorkspacePanel, { IconButton } from './components/WorkspacePanel'
 import DataDiagnostics from './components/DataDiagnostics'
+import PopulationPyramid from './components/PopulationPyramid'
 import AnalysisHistory from './components/AnalysisHistory'
 import { WorkspaceWriter } from './workspaceWriter'
 import { MessageCircleQuestion } from 'lucide-react'
@@ -23,6 +24,8 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
   const state = initial.state
   const [name, setName] = useState(state.name || '新しい分析')
   const [fileInfo, setFileInfo] = useState(initial.file_info)
+  const [populationPyramid, setPopulationPyramid] = useState(state.population_pyramid || null)
+  const [pyramidBusy, setPyramidBusy] = useState(false)
   const [selectedTarget, setSelectedTarget] = useState(state.target || '')
   const [selectedFeatures, setSelectedFeatures] = useState(state.features || [])
   const [hyperParams, setHyperParams] = useState({
@@ -92,14 +95,20 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
     setTimeout(() => ref?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
   }
 
-  const handleUpload = useCallback(async (file) => {
+  const handleUpload = useCallback(async (file, options = {}) => {
     setLoading(true)
     setError('')
     try {
       const formData = new FormData()
       formData.append('file', file)
+      if (options.sheetNames) {
+        formData.append('sheet_names', JSON.stringify(options.sheetNames))
+        formData.append('join_keys', JSON.stringify(options.joinKeys))
+      }
+      if (options.pyramidConfig) formData.append('pyramid_config', JSON.stringify(options.pyramidConfig))
       const res = await axios.post(`${API_BASE}/upload`, formData)
       setFileInfo(res.data)
+      setPopulationPyramid(res.data.population_pyramid || null)
       if (name === '新しい分析') setName(file.name.slice(0, 150))
       const names = new Set(res.data.columns.map(c => c.name))
       setSelectedTarget(value => names.has(value) ? value : '')
@@ -109,9 +118,11 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
       setAi({ explanations: [], summary: '' })
       setQuestionRequest(null)
       setChat(value => ({ ...value, screen_context: '' }))
+      return true
     } catch (err) {
       const d = err.response?.data?.detail
       setError(Array.isArray(d) ? d.map(e => e.msg).join(' / ') : (d || 'アップロードに失敗しました'))
+      return false
     } finally {
       setLoading(false)
     }
@@ -182,7 +193,7 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
   }
 
   const snapshot = { file_id: fileInfo?.file_id || null, name: name.trim() || '新しい分析', filename: fileInfo?.filename || '', target: selectedTarget,
-    features: selectedFeatures, params: hyperParams, results, ai, chat, data_mode: 'single',
+    features: selectedFeatures, params: hyperParams, results, ai, chat, data_mode: 'single', population_pyramid: populationPyramid,
     view: { assistant_tab: assistantTab, left_pct: leftPct, ...scroll } }
   const savedCallback = useRef(onSaved)
   savedCallback.current = onSaved
@@ -213,9 +224,9 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
     if (rightPanel.current) rightPanel.current.scrollTop = state.view?.right_scroll || 0
   }, [])
   useImperativeHandle(ref, () => ({ flush: async () => {
-    if (loading || aiBusy) throw new Error('分析・AI回答の生成が完了してから切り替えてください。')
+    if (loading || aiBusy || pyramidBusy) throw new Error('分析・AI回答の生成・データ読込が完了してから切り替えてください。')
     await writer.current.flush()
-  } }), [loading, aiBusy])
+  } }), [loading, aiBusy, pyramidBusy])
 
   return (
     <div className="page">
@@ -229,7 +240,7 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
           </div>
           <div className="workspace-title"><input aria-label="分析名" value={name} maxLength={150} onChange={e => setName(e.target.value)} /><span role="status">{{pending: '未保存', saving: '保存中...', saved: '保存済み', error: '保存失敗'}[saveStatus]}</span></div>
           {fileInfo && (
-            <button className="btn-reset" onClick={onNew} disabled={loading || aiBusy}>
+            <button className="btn-reset" onClick={onNew} disabled={loading || aiBusy || pyramidBusy}>
               新規分析
             </button>
           )}
@@ -248,6 +259,7 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
             {[
               { id: 'sec-upload',   label: '学習データ' },
               { id: 'sec-preview',  label: 'プレビュー' },
+              { id: 'sec-pyramid', label: '人口ピラミッド' },
               { id: 'sec-quality', label: '変数間の相関' },
               { id: 'sec-history', label: '保存・比較' },
               { id: 'sec-columns',  label: 'カラム選択' },
@@ -281,11 +293,12 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
               </div>
             )}
 
-            <fieldset disabled={loading} className="analysis-fields">
+            <fieldset disabled={loading || pyramidBusy} className="analysis-fields">
             <div id="sec-upload">
               <FileUpload onUpload={handleUpload} fileInfo={fileInfo} />
             </div>
             <div id="sec-preview"><DataPreview data={fileInfo} /></div>
+            <div id="sec-pyramid"><PopulationPyramid data={populationPyramid} onChange={setPopulationPyramid} onBusyChange={setPyramidBusy} /></div>
             <div id="sec-columns">
               <ColumnSelector
                 key={fileInfo?.file_id || 'empty'}
@@ -310,7 +323,7 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
               />
             </div>
 
-            <div id="sec-results"><div className="work-toolbar">{['R²', 'RMSE', '特徴量重要度', 'SHAP'].map(topic => <IconButton key={topic} title={`${topic}について質問`} onClick={() => ask(`現在の分析結果の${topic}を説明してください。`, `選択した表示: ${topic}`)}><MessageCircleQuestion size={16} /><span>{topic}</span></IconButton>)}</div><Results results={results} /></div>
+            <div id="sec-results"><div className="work-toolbar">{['R²', '特徴量重要度', 'SHAP'].map(topic => <IconButton key={topic} title={`${topic}について質問`} onClick={() => ask(`現在の分析結果の${topic}を説明してください。`, `選択した表示: ${topic}`)}><MessageCircleQuestion size={16} /><span>{topic}</span></IconButton>)}</div><Results results={results} /></div>
 
             <div id="sec-simulate">
               {results && !trainedParams && initial.model_status?.reason && <p className="work-warning" role="status">{initial.model_status.reason}</p>}

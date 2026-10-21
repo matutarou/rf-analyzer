@@ -49,7 +49,7 @@ export default function WorkspacePanel({ snapshot, onOpen, onSave, revision, bus
     {chosen.length > 0 && <>
       <h3>比較（最大4件）</h3>{!comparable && <p role="status" className="work-warning">データ・目的変数・欠損除外行のいずれかが異なります。精度を単純に順位付けできません。</p>}
       <div className="work-scroll"><table className="work-table"><thead><tr><th>項目</th>{chosen.map(r => <th key={r.id}>{r.name}</th>)}</tr></thead><tbody>
-        {['r2', 'rmse', 'mae'].map(m => <tr key={m}><th>{m.toUpperCase()}</th>{chosen.map(r => <td key={r.id}>{number(r.results?.metrics?.cv?.[m])}</td>)}</tr>)}
+        <tr><th>決定係数 R²</th>{chosen.map(r => <td key={r.id}>{number(r.results?.metrics?.cv?.r2)}</td>)}</tr>
         <tr><th>説明変数</th>{chosen.map(r => <td key={r.id}>{r.features.join(', ')}</td>)}</tr>
         <tr><th>設定</th>{chosen.map(r => <td key={r.id}><pre>{JSON.stringify(r.params, null, 2)}</pre></td>)}</tr>
         <tr><th>重要度 上位5件</th>{chosen.map(r => <td key={r.id}>{r.results?.feature_importance?.slice(0, 5).map(f => <div key={f.feature}>{f.feature}: {number(f.importance)}</div>)}</td>)}</tr>

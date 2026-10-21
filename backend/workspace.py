@@ -16,6 +16,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 import model_store
+from population import PopulationPyramidData
 
 DB_PATH = Path(__file__).parent / "data" / "workspace.sqlite3"
 
@@ -131,6 +132,7 @@ class Project(BaseModel):
     features: list[str] = Field(default_factory=list)
     params: dict = Field(default_factory=dict)
     results: dict | None = None
+    population_pyramid: PopulationPyramidData | None = None
     ai: dict = Field(default_factory=dict)
     data_mode: Literal["single", "separate"] = "single"
     chat: ChatState = Field(default_factory=ChatState)
@@ -228,9 +230,11 @@ def create_router(uploaded, trained_models, artifacts):
     @router.post("/relationships")
     def relationships(req: Selection):
         df = data(req.file_id)
+        available = df.select_dtypes(include="number").columns.tolist()
         names = list(dict.fromkeys(req.features + ([req.target] if req.target else [])))
+        truncated = not names and len(available) > 40
         if not names:
-            names = df.select_dtypes(include="number").columns.tolist()[:40]
+            names = available[:40]
         if len(names) > 40:
             raise HTTPException(400, "相関表示は40変数以内で選択してください")
         if any(c not in df.columns for c in names):
@@ -240,7 +244,11 @@ def create_router(uploaded, trained_models, artifacts):
         counts = numeric.notna().astype(int).T @ numeric.notna().astype(int)
         pairs = [{"x": a, "y": b, "r": None if pd.isna(corr.loc[a, b]) else float(corr.loc[a, b]), "n": int(counts.loc[a, b])}
                  for i, a in enumerate(numeric.columns) for b in numeric.columns[i + 1:]]
-        return {"pairs": sorted(pairs, key=lambda p: abs(p['r'] or 0), reverse=True), "excluded": [n for n in names if n not in numeric.columns]}
+        matrix = [[None if pd.isna(value) else float(value) for value in row] for row in corr.to_numpy()]
+        return {"pairs": sorted(pairs, key=lambda p: abs(p['r'] or 0), reverse=True),
+                "excluded": [n for n in names if n not in numeric.columns],
+                "variables": list(numeric.columns), "matrix": matrix, "counts": counts.to_numpy().tolist(),
+                "available": available, "truncated": truncated}
 
     def persist(req, project_id, create_only=False):
         df = data(req.file_id) if req.file_id else None

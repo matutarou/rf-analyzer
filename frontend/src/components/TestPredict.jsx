@@ -294,23 +294,9 @@ export default function TestPredict({ dataMode, fileInfo, selectedTarget, select
             <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 10 }}>精度指標（実測値あり）</div>
             <div className="metrics-grid" style={{ marginBottom: 0 }}>
               <div className={`metric-card ${result.metrics.r2 >= 0.7 ? 'good' : result.metrics.r2 >= 0.4 ? 'warn' : ''}`}>
-                <div className="metric-label">R²</div>
+                <div className="metric-label">決定係数 R²</div>
                 <div className="metric-value">{fmtNum(result.metrics.r2)}</div>
               </div>
-              <div className="metric-card">
-                <div className="metric-label">RMSE</div>
-                <div className="metric-value">{fmtNum(result.metrics.rmse, 2)}</div>
-              </div>
-              <div className="metric-card">
-                <div className="metric-label">MAE</div>
-                <div className="metric-value">{fmtNum(result.metrics.mae, 2)}</div>
-              </div>
-              {result.metrics.mape != null && (
-                <div className="metric-card">
-                  <div className="metric-label">MAPE</div>
-                  <div className="metric-value">{fmtNum(result.metrics.mape * 100, 1)}%</div>
-                </div>
-              )}
             </div>
           </div>
         )}

@@ -69,6 +69,32 @@ class WorkspaceTest(unittest.TestCase):
         self.assertAlmostEqual(pair['r'], 1)
         self.assertEqual(pair['n'], 11)
         self.assertTrue(all(p['r'] is None for p in pairs if 'constant' in (p['x'], p['y'])))
+        result = response.json()
+        self.assertEqual(result['variables'], ['x', 'constant', 'y'])
+        self.assertEqual(result['matrix'][0][2], result['matrix'][2][0])
+        self.assertAlmostEqual(result['matrix'][0][2], 1)
+        self.assertEqual(result['counts'][0][2], 11)
+        self.assertIsNone(result['matrix'][1][1])
+        self.assertIn('y', result['available'])
+        self.assertNotIn('category', result['available'])
+
+    def test_heatmap_missing_infinite_and_insufficient_values(self):
+        main.uploaded_data[self.file_id] = pd.DataFrame({'x': [1, 2, 3, 4], 'negative': [-1, -2, -3, -4], 'sparse': [1, None, float('inf'), 4]})
+        result = self.client.post('/api/relationships', json={'file_id': self.file_id}).json()
+        self.assertAlmostEqual(result['matrix'][0][1], -1)
+        self.assertEqual(result['counts'][0][2], 2)
+        self.assertIsNone(result['matrix'][0][2])
+        self.assertIsNone(result['matrix'][2][2])
+
+    def test_heatmap_limit_is_explicit_and_variables_can_be_selected(self):
+        main.uploaded_data[self.file_id] = pd.DataFrame({f'x{index}': range(4) for index in range(45)})
+        result = self.client.post('/api/relationships', json={'file_id': self.file_id}).json()
+        self.assertEqual(len(result['variables']), 40)
+        self.assertEqual(len(result['available']), 45)
+        self.assertTrue(result['truncated'])
+        selected = self.client.post('/api/relationships', json={'file_id': self.file_id, 'features': ['x44', 'x0']}).json()
+        self.assertEqual(selected['variables'], ['x44', 'x0'])
+        self.assertFalse(selected['truncated'])
 
     def test_save_restore_report_delete(self):
         response = self.save()
