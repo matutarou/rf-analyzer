@@ -30,7 +30,7 @@ function DragScroll({ children }) {
 }
 import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  ScatterChart, Scatter, ReferenceLine, Cell, ComposedChart, Line, Legend,
+  ScatterChart, Scatter, ReferenceLine, Cell, ComposedChart, Line,
 } from 'recharts'
 import { historyDomain } from '../optunaHistory'
 
@@ -120,7 +120,7 @@ export default function Results({ results }) {
             </div>
           )}
 
-          {/* Optunaの試行ごとのR²と、その時点までの最高値の推移 */}
+          {/* Optunaの試行ごとのR²を折れ線で表示する */}
           {history?.length > 0 && (
             <div style={{ borderTop: '1px solid #f1f5f9', marginTop: 16, paddingTop: 16 }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', letterSpacing: '0.05em', marginBottom: 10 }}>Optuna 試行ごとの決定係数 R²</div>
@@ -130,9 +130,7 @@ export default function Results({ results }) {
                   <XAxis dataKey="trial" type="number" domain={[1, history.length]} allowDecimals={false} tick={{ fontSize: 11 }} label={{ value: '試行回数', position: 'bottom', fontSize: 12, offset: 0 }} />
                   <YAxis domain={historyDomain(history)} allowDataOverflow tick={{ fontSize: 11 }} tickFormatter={v => v.toFixed(2)} width={48} />
                   <Tooltip formatter={(v, name) => [v == null ? '—' : Number(v).toFixed(4), name]} labelFormatter={v => `試行 ${v}`} />
-                  <Legend verticalAlign="top" height={24} />
-                  <Scatter dataKey="value" name="各試行のR²" fill="#94a3b8" isAnimationActive={false} />
-                  <Line dataKey="best" name="それまでの最高値" type="stepAfter" stroke="#2563eb" strokeWidth={2} dot={false} isAnimationActive={false} />
+                  <Line dataKey="value" name="R²" type="linear" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} connectNulls isAnimationActive={false} />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
