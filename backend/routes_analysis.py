@@ -163,16 +163,21 @@ def analyze(req: AnalyzeRequest):
 
 
 
-def _loo_predictions(model, X, y, checkpoint, stage):
+def _loo_predictions(model, X, y, checkpoint, stage, explain=False):
+    """LOOCVのout-of-fold予測を返す。explain=Trueなら、各行をその行を除いて学習したモデルで説明したSHAP値も返す"""
     from sklearn.base import clone
     predictions = np.empty(len(y))
+    shap_values = np.zeros(X.shape) if explain else None
     for i, (train, test) in enumerate(LeaveOneOut().split(X)):
         checkpoint(f"{stage}: {i}/{len(y)}件")
         estimator = clone(model)
         estimator.fit(X[train], y[train])
         predictions[test] = estimator.predict(X[test])
+        if explain:
+            # 対象の行を学習に含めたモデルで説明すると、その行の実測値を覚えた分まで要因の効きに見えるため除外する
+            shap_values[test] = shap.TreeExplainer(estimator).shap_values(X[test])
     checkpoint(f"{stage}: {len(y)}/{len(y)}件")
-    return predictions
+    return (predictions, shap_values) if explain else predictions
 
 
 
@@ -235,7 +240,7 @@ def _analyze(req: AnalyzeRequest, checkpoint=lambda message: None):
 
         # Leave-One-Out CV：全サンプルのout-of-fold予測を集めて全体で評価する
         loo = LeaveOneOut()
-        y_oof = _loo_predictions(model, X, y, checkpoint, "交差検証")
+        y_oof, oof_shap = _loo_predictions(model, X, y, checkpoint, "交差検証", explain=True)
 
         metrics = {
             "cv": {
@@ -273,12 +278,11 @@ def _analyze(req: AnalyzeRequest, checkpoint=lambda message: None):
             "max": float(residuals.max()),
         }
 
-        # SHAP値の計算（全データから最大200件）
+        # SHAP値はLOOCVの各モデルで計算した値を使う（表示は先頭から最大200件）
         top_n = min(req.shap_top_n, len(req.feature_columns))
-        checkpoint("SHAPを計算中")
-        explainer = shap.TreeExplainer(model)
+        checkpoint("SHAPを集計中")
         shap_X = X[:200]
-        shap_vals = explainer.shap_values(shap_X)
+        shap_vals = oof_shap[:200]
 
         mean_abs_shap = np.abs(shap_vals).mean(axis=0)
         top_indices = np.argsort(mean_abs_shap)[::-1][:top_n]

@@ -85,6 +85,29 @@ class ImprovementsTest(unittest.TestCase):
         for key in ("history",):
             main.uploaded_data.pop(key, None); main.trained_models.pop(key, None); main.model_artifacts.pop(key, None)
 
+    def test_shap_uses_model_without_target_row(self):
+        from sklearn.base import clone
+        from sklearn.ensemble import RandomForestRegressor
+        rng = np.random.default_rng(0)
+        X = rng.normal(size=(12, 3))
+        y = X[:, 0] * 2 + X[:, 1] + rng.normal(scale=0.1, size=12)
+        model = RandomForestRegressor(n_estimators=5, random_state=7)
+        predictions, values = routes_analysis._loo_predictions(model, X, y, lambda message: None, "検証", explain=True)
+        for row in (0, 5, 11):
+            others = np.delete(np.arange(12), row)
+            fold = clone(model).fit(X[others], y[others])
+            self.assertAlmostEqual(predictions[row], fold.predict(X[[row]])[0])
+            np.testing.assert_allclose(values[row], routes_analysis.shap.TreeExplainer(fold).shap_values(X[[row]])[0])
+        # SHAPを求めない場合は従来どおり予測だけを返す
+        np.testing.assert_allclose(routes_analysis._loo_predictions(model, X, y, lambda message: None, "検証"), predictions)
+        main.uploaded_data["oof-shap"] = pd.DataFrame({"a": X[:, 0], "b": X[:, 1], "c": X[:, 2], "y": y})
+        req = main.AnalyzeRequest(file_id="oof-shap", target_column="y", feature_columns=["a", "b", "c"], n_estimators=5, random_state=7)
+        result = main._analyze(req)
+        expected = np.abs(values).mean(axis=0)
+        for item in result["shap"]["importance"]:
+            self.assertAlmostEqual(item["mean_abs_shap"], expected[["a", "b", "c"].index(item["feature"])])
+        main.uploaded_data.pop("oof-shap", None); main.trained_models.pop("oof-shap", None); main.model_artifacts.pop("oof-shap", None)
+
 
 if __name__ == "__main__":
     unittest.main()
