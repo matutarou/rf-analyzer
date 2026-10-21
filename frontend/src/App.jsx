@@ -329,7 +329,7 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
                 selectedTarget={selectedTarget}
                 selectedFeatures={selectedFeatures}
                 hyperParams={trainedParams}
-                shapImportance={results?.shap?.importance}
+                shap={results?.shap}
               />
             </div>
             </fieldset>

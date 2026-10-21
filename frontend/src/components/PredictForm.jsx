@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 
-import { baselineFor, signed, sortByShap } from '../simulation'
+import { baselineFor, signed, sortByRowShap, sortByShap } from '../simulation'
 
 const API_BASE = '/api'
 const fmt = (v, d = 2) => (v != null ? Number(v).toFixed(d) : '—')
@@ -14,7 +14,7 @@ function sliderStep(min, max) {
   return Math.round(range / 100)
 }
 
-export default function PredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperParams, modelId, shapImportance }) {
+export default function PredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperParams, modelId, shap }) {
   if (!fileInfo || !selectedTarget || selectedFeatures.length === 0 || !hyperParams) {
     return (
       <div className="card" style={{ marginTop: 20 }}>
@@ -26,13 +26,17 @@ export default function PredictForm({ fileInfo, selectedTarget, selectedFeatures
     )
   }
 
-  return <ActivePredictForm key={JSON.stringify([fileInfo.file_id, selectedTarget, selectedFeatures, hyperParams, modelId])} fileInfo={fileInfo} selectedTarget={selectedTarget} selectedFeatures={selectedFeatures} hyperParams={hyperParams} modelId={modelId} shapImportance={shapImportance} />
+  return <ActivePredictForm key={JSON.stringify([fileInfo.file_id, selectedTarget, selectedFeatures, hyperParams, modelId])} fileInfo={fileInfo} selectedTarget={selectedTarget} selectedFeatures={selectedFeatures} hyperParams={hyperParams} modelId={modelId} shap={shap} />
 }
 
-function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperParams, modelId, shapImportance }) {
+function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperParams, modelId, shap }) {
   const colMap = Object.fromEntries(fileInfo.columns.map(c => [c.name, c]))
-  // 選択肢はSHAPの大きい順に表示する（APIに送る変数の順序はモデルに合わせてselectedFeaturesのまま）
-  const numericFeatures = sortByShap(selectedFeatures, shapImportance).filter(f => /^(u?int|float|Float|Int|bool)/i.test(colMap[f]?.dtype || ''))
+  const isNumeric = f => /^(u?int|float|Float|Int|bool)/i.test(colMap[f]?.dtype || '')
+  // 選択肢は対象の市町村のSHAP絶対値の大きい順に表示する。その市町村のSHAPがなければ全体の平均|SHAP|順にする
+  // （APIに送る変数の順序はモデルに合わせてselectedFeaturesのまま）
+  const orderFor = index => (index === '' ? null : sortByRowShap(selectedFeatures, shap, Number(index)))
+    ?? sortByShap(selectedFeatures, shap?.importance)
+  const numericFeatures = selectedFeatures.filter(isNumeric)
 
   const meanValues = Object.fromEntries(
     numericFeatures.map(f => {
@@ -48,8 +52,9 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
   const cityRow = cityIndex === '' ? null : rows[Number(cityIndex)]
   const baselineValues = baselineFor(numericFeatures, meanValues, cityRow)
   const actualValue = cityRow?.[selectedTarget]
+  const orderedFeatures = orderFor(cityIndex).filter(isNumeric)
 
-  const [checkedFeatures, setCheckedFeatures] = useState(new Set(numericFeatures.slice(0, 3)))
+  const [checkedFeatures, setCheckedFeatures] = useState(() => new Set(orderFor('').filter(isNumeric).slice(0, 3)))
   const [sliderValues, setSliderValues] = useState({ ...baselineValues })
   const [result, setResult] = useState(null)
   const [updating, setUpdating] = useState(false)
@@ -93,8 +98,11 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
   const chooseCity = (index) => {
     setCityIndex(index)
     const base = baselineFor(numericFeatures, meanValues, index === '' ? null : rows[Number(index)])
+    // 並び順が市町村ごとに変わるので、チェックもその市町村の上位3つに付け直す
+    const checked = new Set(orderFor(index).filter(isNumeric).slice(0, 3))
+    setCheckedFeatures(checked)
     setSliderValues({ ...base })
-    scheduleSimulate(checkedFeatures, base, base, index)
+    scheduleSimulate(checked, base, base, index)
   }
 
   const toggleFeature = (f) => {
@@ -125,8 +133,9 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
         setRows(loaded)
         const index = loaded.length ? '0' : ''
         const base = baselineFor(numericFeatures, meanValues, loaded.length ? loaded[0] : null)
-        setCityIndex(index); setSliderValues({ ...base })
-        scheduleSimulate(checkedFeatures, base, base, index)
+        const checked = new Set(orderFor(index).filter(isNumeric).slice(0, 3))
+        setCityIndex(index); setCheckedFeatures(checked); setSliderValues({ ...base })
+        scheduleSimulate(checked, base, base, index)
       })
       .catch(() => { if (active) { setRows([]); scheduleSimulate(checkedFeatures, sliderValues) } })
     return () => { active = false }
@@ -161,7 +170,7 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
             <span className="tag tag-feature">{checkedFeatures.size}件選択中</span>
           </h3>
           <div className="column-list" style={{ maxHeight: 220 }}>
-            {numericFeatures.map(f => (
+            {orderedFeatures.map(f => (
               <label
                 key={f}
                 className={`column-item ${checkedFeatures.has(f) ? 'selected' : ''}`}
@@ -179,7 +188,7 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
         </div>
 
         {/* スライダー */}
-        {[...checkedFeatures].map(f => {
+        {orderedFeatures.filter(f => checkedFeatures.has(f)).map(f => {
           const col = colMap[f]
           const min = col?.min ?? 0
           const max = col?.max ?? 100

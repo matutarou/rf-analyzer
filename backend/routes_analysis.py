@@ -283,6 +283,9 @@ def _analyze(req: AnalyzeRequest, checkpoint=lambda message: None):
         checkpoint("SHAPを集計中")
         shap_X = X[:200]
         shap_vals = oof_shap[:200]
+        # 学習に使った各行が元データの何行目か（欠損行を除外しているため）と、その行の名前（先頭列の値）
+        positions = df.index.get_indexer(df_work.index)
+        labels = [str(df.iloc[pos, 0]) for pos in positions]
 
         mean_abs_shap = np.abs(shap_vals).mean(axis=0)
         top_indices = np.argsort(mean_abs_shap)[::-1][:top_n]
@@ -301,16 +304,21 @@ def _analyze(req: AnalyzeRequest, checkpoint=lambda message: None):
             fv_min, fv_max = fv.min(), fv.max()
             fv_norm = (fv - fv_min) / (fv_max - fv_min + 1e-9)
             jitter = rng.uniform(-0.35, 0.35, size=len(sv))
-            for s, fn, j in zip(sv, fv_norm, jitter):
+            for index, (s, fn, j) in enumerate(zip(sv, fv_norm, jitter)):
                 beeswarm.append({
                     "feature": feat_name,
                     "feature_rank": rank,
                     "shap": float(s),
                     "value_norm": float(fn),
                     "y": float(rank + j),
+                    "row": int(positions[index]),
+                    "label": labels[index],
                 })
 
-        shap_data = {"importance": shap_importance, "beeswarm": beeswarm}
+        # 市町村ごとのSHAP値（行 × 説明変数）。シミュレーションでの並び替えなどに使う
+        shap_data = {"importance": shap_importance, "beeswarm": beeswarm,
+                     "features": list(req.feature_columns), "rows": [int(p) for p in positions],
+                     "values": oof_shap.tolist()}
 
         checkpoint("完了処理中")
         result = {

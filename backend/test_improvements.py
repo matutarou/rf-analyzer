@@ -106,6 +106,18 @@ class ImprovementsTest(unittest.TestCase):
         expected = np.abs(values).mean(axis=0)
         for item in result["shap"]["importance"]:
             self.assertAlmostEqual(item["mean_abs_shap"], expected[["a", "b", "c"].index(item["feature"])])
+        self.assertEqual(result["shap"]["features"], ["a", "b", "c"])
+        self.assertEqual(result["shap"]["rows"], list(range(12)))
+        np.testing.assert_allclose(result["shap"]["values"], values)
+        self.assertEqual({point["row"] for point in result["shap"]["beeswarm"]}, set(range(12)))
+        # 欠損行を除外しても、元データの行番号と名前（先頭列）で対応付ける
+        frame = pd.DataFrame({"name": [f"市{i}" for i in range(12)], "a": X[:, 0], "y": y})
+        frame.loc[2, "a"] = None
+        main.uploaded_data["oof-shap"] = frame
+        missing = main._analyze(main.AnalyzeRequest(file_id="oof-shap", target_column="y", feature_columns=["a"], n_estimators=5, random_state=7))
+        self.assertEqual(missing["shap"]["rows"], [0, 1] + list(range(3, 12)))
+        self.assertEqual(len(missing["shap"]["values"]), 11)
+        self.assertEqual({point["label"] for point in missing["shap"]["beeswarm"]}, {f"市{i}" for i in range(12) if i != 2})
         main.uploaded_data.pop("oof-shap", None); main.trained_models.pop("oof-shap", None); main.model_artifacts.pop("oof-shap", None)
 
 

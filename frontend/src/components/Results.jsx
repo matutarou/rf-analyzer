@@ -188,10 +188,16 @@ export default function Results({ results }) {
                     ticks={visibleShap.map((_, i) => i)}
                     tickFormatter={(v) => shap.importance[maxRank - Math.round(v)]?.feature ?? ''}
                     width={calcYWidth(visibleShap.map(d => d.feature))} tick={{ fontSize: 11 }} />
-                  <Tooltip
-                    formatter={(v, name) => name === 'SHAP値' ? fmtNum(v) : undefined}
-                    contentStyle={{ fontSize: 12, borderRadius: 8 }}
-                  />
+                  <Tooltip content={({ active, payload }) => {
+                    // 点の市町村名・変数・SHAP値を表示する（古い結果には市町村名がない）
+                    const point = active && payload?.[0]?.payload
+                    if (!point) return null
+                    return <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 10px', fontSize: 12 }}>
+                      {point.label && <div style={{ fontWeight: 700 }}>{point.label}</div>}
+                      <div>{point.feature}</div>
+                      <div>SHAP値: {fmtNum(point.shap)}</div>
+                    </div>
+                  }} />
                   <ReferenceLine x={0} stroke="#94a3b8" strokeWidth={1.5} />
                   <Scatter data={visibleBeeswarm} opacity={0.7} r={3}>
                     {visibleBeeswarm.map((d, i) => (

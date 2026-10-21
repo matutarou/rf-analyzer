@@ -20,3 +20,14 @@ export function baselineFor(features, means, row) {
     return [feature, Number.isFinite(value) ? value : means[feature]]
   }))
 }
+
+// 選んだ行（元データの行番号）のSHAP絶対値が大きい順に変数を並べる。その行のSHAPがなければnullを返す
+export function sortByRowShap(features, shap, row) {
+  const index = shap?.rows?.indexOf(row) ?? -1
+  if (index < 0 || !shap.values?.[index] || !shap.features) return null
+  const size = new Map(shap.features.map((feature, column) => [feature, Math.abs(shap.values[index][column])]))
+  return features
+    .map((feature, order) => ({ feature, order, size: size.get(feature) ?? -1 }))
+    .sort((a, b) => b.size - a.size || a.order - b.order)
+    .map(item => item.feature)
+}
