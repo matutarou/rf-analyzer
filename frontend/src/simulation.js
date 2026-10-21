@@ -1,7 +1,23 @@
-// 符号付きで数値を表示する（例: +12.30, -4.00）
-export function signed(value, digits = 2) {
+// 数値を表示する。1000以上は整数、それより小さい値は有効数字4桁（率のような小さい値が0.00にならないように）
+export function formatValue(value) {
   if (!Number.isFinite(value)) return '—'
-  return `${value > 0 ? '+' : ''}${value.toFixed(digits)}`
+  if (value === 0) return '0'
+  return Math.abs(value) >= 1000
+    ? value.toLocaleString('ja-JP', { maximumFractionDigits: 0 })
+    : value.toLocaleString('ja-JP', { maximumSignificantDigits: 4 })
+}
+
+// 符号付きで数値を表示する（例: +12.3, -0.001973）
+export function signed(value) {
+  if (!Number.isFinite(value)) return '—'
+  return `${value > 0 ? '+' : ''}${formatValue(value)}`
+}
+
+// スライダーの刻み幅。範囲のおよそ1/100（10のべき乗）にし、整数の列は1より細かくしない
+export function sliderStep(min, max, integer = false) {
+  const range = max - min
+  const step = range > 0 ? 10 ** Math.floor(Math.log10(range / 100)) : 1
+  return integer ? Math.max(1, step) : step
 }
 
 // シミュレーションの変数をSHAP（平均|SHAP|）の大きい順に並べる。SHAPにない変数は元の順で後ろに置く

@@ -1,12 +1,25 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { baselineFor, signed, sortByRowShap, sortByShap } from './simulation.js'
+import { baselineFor, formatValue, signed, sliderStep, sortByRowShap, sortByShap } from './simulation.js'
 
-test('符号付きで表示し、数値でないときは「—」にする', () => {
-  assert.equal(signed(1.234), '+1.23')
-  assert.equal(signed(-4), '-4.00')
-  assert.equal(signed(0), '0.00')
+test('1000以上は整数、小さい値は有効数字4桁で表示し、符号も付ける', () => {
+  assert.equal(formatValue(269231.4), '269,231')
+  assert.equal(formatValue(-0.0019734), '-0.001973')
+  assert.equal(formatValue(12.3456), '12.35')
+  assert.equal(formatValue(0), '0')
+  assert.equal(formatValue(NaN), '—')
+  assert.equal(signed(0.0012345), '+0.001235')
+  assert.equal(signed(-4), '-4')
+  assert.equal(signed(0), '0')
   assert.equal(signed(undefined), '—')
+})
+
+test('スライダーの刻みは範囲のおよそ1/100で、整数の列は1より細かくしない', () => {
+  assert.equal(sliderStep(-0.01, 0.01), 0.0001)
+  assert.equal(sliderStep(3000, 5000), 10)
+  assert.equal(sliderStep(0, 8), 0.01)
+  assert.equal(sliderStep(0, 8, true), 1)
+  assert.equal(sliderStep(5, 5), 1)
 })
 
 test('変数はSHAPの大きい順に並べ、SHAPにない変数は元の順で後ろに置く', () => {

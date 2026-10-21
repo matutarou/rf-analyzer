@@ -1,18 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 
-import { baselineFor, signed, sortByRowShap, sortByShap } from '../simulation'
+import { baselineFor, formatValue, signed, sliderStep, sortByRowShap, sortByShap } from '../simulation'
 
 const API_BASE = '/api'
-const fmt = (v, d = 2) => (v != null ? Number(v).toFixed(d) : '—')
-
-function sliderStep(min, max) {
-  const range = max - min
-  if (range <= 1) return 0.01
-  if (range <= 10) return 0.1
-  if (range <= 100) return 1
-  return Math.round(range / 100)
-}
+const fmt = v => (v != null ? formatValue(Number(v)) : '—')
 
 export default function PredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperParams, modelId, shap }) {
   if (!fileInfo || !selectedTarget || selectedFeatures.length === 0 || !hyperParams) {
@@ -193,7 +185,7 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
           const min = col?.min ?? 0
           const max = col?.max ?? 100
           const mean = col?.mean ?? (min + max) / 2
-          const step = sliderStep(min, max)
+          const step = sliderStep(min, max, /int/i.test(col?.dtype || ''))
           const val = sliderValues[f] ?? mean
           const pct = max > min ? ((val - min) / (max - min)) * 100 : 50
 
@@ -202,7 +194,7 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{f}</span>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: '#2563eb', fontWeight: 700 }}>
-                  {fmt(val, step < 1 ? 2 : 0)}
+                  {fmt(val)}
                 </span>
               </div>
               <input
@@ -212,9 +204,9 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
                 style={{ width: '100%', accentColor: '#2563eb' }}
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
-                <span>{fmt(min, step < 1 ? 2 : 0)}</span>
-                <span style={{ color: '#cbd5e1' }}>平均: {fmt(mean, step < 1 ? 2 : 0)}</span>
-                <span>{fmt(max, step < 1 ? 2 : 0)}</span>
+                <span>{fmt(min)}</span>
+                <span style={{ color: '#cbd5e1' }}>平均: {fmt(mean)}</span>
+                <span>{fmt(max)}</span>
               </div>
             </div>
           )
@@ -241,15 +233,15 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
             <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
               {cityRow && <div className="metric-card" style={{ flex: 1, minWidth: 140 }}>
                 <div className="metric-label">{selectedTarget}（実測値）</div>
-                <div className="metric-value" style={{ fontSize: 20 }}>{Number.isFinite(actualValue) ? fmt(actualValue, 2) : '—'}</div>
+                <div className="metric-value" style={{ fontSize: 20 }}>{Number.isFinite(actualValue) ? fmt(actualValue) : '—'}</div>
               </div>}
               <div className="metric-card" style={{ flex: 1, minWidth: 140 }}>
                 <div className="metric-label">{selectedTarget}（変更前の予測）</div>
-                <div className="metric-value" style={{ fontSize: 20 }}>{fmt(result.baseline, 2)}</div>
+                <div className="metric-value" style={{ fontSize: 20 }}>{fmt(result.baseline)}</div>
               </div>
               <div className="metric-card" style={{ flex: 1, minWidth: 140 }}>
                 <div className="metric-label">{selectedTarget}（変更後の予測）</div>
-                <div className="metric-value" style={{ fontSize: 20, color: '#2563eb' }}>{fmt(result.simulation, 2)}</div>
+                <div className="metric-value" style={{ fontSize: 20, color: '#2563eb' }}>{fmt(result.simulation)}</div>
               </div>
             </div>
 
@@ -257,7 +249,7 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
             <div className="work-scroll" style={{ marginBottom: 24 }}><table className="work-table">
               <thead><tr><th>変数</th><th>変更前（{cityRow ? String(cityRow[idCol]) : '平均'}）</th><th>変更後</th><th>値の差</th><th>{selectedTarget}への影響</th></tr></thead>
               <tbody>{result.marginal_effects.map(e => <tr key={e.feature}>
-                <th>{e.feature}</th><td>{fmt(e.from_val, 2)}</td><td>{fmt(e.to_val, 2)}</td><td>{signed(e.to_val - e.from_val)}</td>
+                <th>{e.feature}</th><td>{fmt(e.from_val)}</td><td>{fmt(e.to_val)}</td><td>{signed(e.to_val - e.from_val)}</td>
                 <td style={{ color: e.effect > 0 ? '#15803d' : e.effect < 0 ? '#dc2626' : undefined }}>{signed(e.effect)}</td>
               </tr>)}</tbody>
             </table></div>
