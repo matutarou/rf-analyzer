@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 
-import { baselineFor, changeRate, signed, sortByShap } from '../simulation'
+import { baselineFor, signed, sortByShap } from '../simulation'
 
 const API_BASE = '/api'
 const fmt = (v, d = 2) => (v != null ? Number(v).toFixed(d) : '—')
@@ -233,7 +233,7 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
         {result && (
           <div style={{ marginTop: 28 }}>
             {Object.keys(result.fixed_categories || {}).length > 0 && <p>固定カテゴリ: {Object.entries(result.fixed_categories).map(([k, v]) => `${k}=${v}`).join(', ')}</p>}
-            {/* 予測値サマリ：目的変数の変更前・変更後・差分・変化率 */}
+            {/* 予測値サマリ：目的変数の実測値と変更前・変更後の予測 */}
             <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
               {cityRow && <div className="metric-card" style={{ flex: 1, minWidth: 140 }}>
                 <div className="metric-label">{selectedTarget}（実測値）</div>
@@ -246,14 +246,6 @@ function ActivePredictForm({ fileInfo, selectedTarget, selectedFeatures, hyperPa
               <div className="metric-card" style={{ flex: 1, minWidth: 140 }}>
                 <div className="metric-label">{selectedTarget}（変更後の予測）</div>
                 <div className="metric-value" style={{ fontSize: 20, color: '#2563eb' }}>{fmt(result.simulation, 2)}</div>
-              </div>
-              <div className={`metric-card ${result.delta >= 0 ? 'good' : ''}`} style={{ flex: 1, minWidth: 140 }}>
-                <div className="metric-label">差分（Δ）</div>
-                <div className="metric-value" style={{ fontSize: 20, color: result.delta >= 0 ? '#15803d' : '#dc2626' }}>{signed(result.delta)}</div>
-              </div>
-              <div className="metric-card" style={{ flex: 1, minWidth: 140 }}>
-                <div className="metric-label">変化率</div>
-                <div className="metric-value" style={{ fontSize: 20, color: result.delta >= 0 ? '#15803d' : '#dc2626' }}>{changeRate(result.baseline, result.simulation) == null ? '—' : `${signed(changeRate(result.baseline, result.simulation))}%`}</div>
               </div>
             </div>
 
