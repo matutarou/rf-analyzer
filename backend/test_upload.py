@@ -93,6 +93,23 @@ class UploadTest(unittest.TestCase):
         ])
         self.assertEqual(result['warnings'], [])
 
+    def test_population_and_factor_preview_joins_by_key_not_row_order(self):
+        response = self.upload(['人口関係データ', '想定される要因'],
+                               {'人口関係データ': '市町村', '想定される要因': '自治体'}, frames={
+            '想定される要因': pd.DataFrame({'自治体': ['日立市', '水戸市'], '施設数': [4, 3]}),
+            '人口関係データ': pd.DataFrame({'市町村': ['水戸市', '日立市', '土浦市'], '人口増減率': [0.1, -0.2, 0.3]}),
+        })
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()
+        self.assertEqual(result['selected_sheets'], ['人口関係データ', '想定される要因'])
+        self.assertEqual(result['preview'], [
+            {'市町村': '水戸市', '人口増減率': 0.1, '想定される要因 / 施設数': 3},
+            {'市町村': '日立市', '人口増減率': -0.2, '想定される要因 / 施設数': 4},
+            {'市町村': '土浦市', '人口増減率': 0.3, '想定される要因 / 施設数': None},
+        ])
+        self.assertEqual([column['source_sheet'] for column in result['columns']], ['人口関係データ', '人口関係データ', '想定される要因'])
+        self.assertEqual(len(result['warnings']), 1)
+
     def test_selected_first_sheet_is_base_and_keys_are_trimmed(self):
         self.frames['施設'].loc[0, '自治体'] = ' 日立市 '
         response = self.upload(['施設', '人口'], {'人口': '市町村', '施設': '自治体'})

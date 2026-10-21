@@ -105,7 +105,7 @@ export default function FileUpload({ onUpload, fileInfo }) {
           <legend>Excelシートの選択</legend>
           <p>{workbook.file.name}</p>
           <p>1シートだけ読み込むか、複数シートを共通のキーで横結合できます。</p>
-          <p>「想定される要因」シートの列から説明変数を選択します。「人口ピラミッド」シートは可視化専用です。目的変数が別シートにある場合は、そのシートも選択して結合してください。</p>
+          <p>「人口関係データ」と「想定される要因」がある場合は、両方を初期選択します。市町村名などの結合キーを確認して読み込むと、結合したデータをプレビューできます。説明変数は「想定される要因」から選択し、「人口ピラミッド」は可視化専用です。</p>
           <div className="work-scroll"><table className="work-table">
             <thead><tr><th>使用</th><th>シート</th><th>行 × 列</th>{selected.length > 1 && <th>結合キー</th>}</tr></thead>
             <tbody>{workbook.sheets.map(sheet => <tr key={sheet.name}>

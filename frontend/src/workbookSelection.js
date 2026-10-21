@@ -5,8 +5,17 @@ export function defaultWorkbookSelection(sheets) {
   const pyramid = available.find(sheet => sheet.name === '人口ピラミッド')
     || available.find(sheet => sheet.name.includes('人口ピラミッド') && sheet.columns.length >= 4)
   const analysis = available.filter(sheet => sheet.name !== pyramid?.name)
-  const first = analysis.find(sheet => sheet.name === '想定される要因') || analysis[0]
-  return { sheetNames: first ? [first.name] : [], pyramidConfig: guessPyramidConfig(pyramid) }
+  const population = analysis.find(sheet => sheet.name === '人口関係データ')
+  const factors = analysis.find(sheet => sheet.name === '想定される要因')
+  const first = population || factors || analysis[0]
+  const selected = first ? [first.name] : []
+  if (population && factors) selected.push(factors.name)
+  return { sheetNames: selected, pyramidConfig: guessPyramidConfig(pyramid) }
+}
+
+export function previewSourceSheets(data) {
+  const sources = data.columns.map(column => column.source_sheet).filter(Boolean)
+  return [...new Set(sources.length ? sources : data.selected_sheets || [])]
 }
 
 export function featureColumns(columns) {
