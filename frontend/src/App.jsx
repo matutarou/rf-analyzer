@@ -14,7 +14,8 @@ import PopulationPyramid from './components/PopulationPyramid'
 import AnalysisHistory from './components/AnalysisHistory'
 import { WorkspaceWriter } from './workspaceWriter'
 import { isBlankWorkspace } from './isBlankWorkspace'
-import { MessageCircleQuestion } from 'lucide-react'
+import { readAssistantHidden, writeAssistantHidden } from './assistantVisibility'
+import { MessageCircleQuestion, PanelRightClose, PanelRightOpen } from 'lucide-react'
 import './workspace.css'
 
 const API_BASE = '/api'
@@ -45,6 +46,8 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
   const [ai, setAi] = useState(state.ai || { explanations: [], summary: '' })
   const [chat, setChat] = useState(state.chat || { messages: [], input: '', screen_context: '' })
   const [assistantTab, setAssistantTab] = useState(state.view?.assistant_tab || 'explain')
+  const [assistantHidden, setAssistantHidden] = useState(() => readAssistantHidden())
+  useEffect(() => { writeAssistantHidden(assistantHidden) }, [assistantHidden])
   const [aiBusy, setAiBusy] = useState(false)
   const [scroll, setScroll] = useState({ left_scroll: state.view?.left_scroll || 0, right_scroll: state.view?.right_scroll || 0 })
   const [saveStatus, setSaveStatus] = useState('pending')
@@ -53,10 +56,13 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
   const rightPanel = useRef(null)
   const [questionRequest, setQuestionRequest] = useState(null)
   const ask = (question, context = '') => {
+    setAssistantHidden(false)
     setAssistantTab('chat')
     setQuestionRequest({ question, context, id: Date.now() })
-    document.getElementById('assistant-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
+  useEffect(() => {
+    if (questionRequest) rightPanel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [questionRequest])
 
   const paramsRef = useRef(null)
 
@@ -242,6 +248,10 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
             </div>
           </div>
           <div className="workspace-title"><input aria-label="分析名" value={name} maxLength={150} onChange={e => setName(e.target.value)} /><span role="status">{blank ? '新規' : {new: '新規', pending: '未保存', saving: '保存中...', saved: '保存済み', error: '保存失敗'}[saveStatus]}</span></div>
+          <button type="button" className="work-icon" aria-expanded={!assistantHidden} aria-controls="assistant-panel" onClick={() => setAssistantHidden(value => !value)}>
+            {assistantHidden ? <PanelRightOpen size={18} aria-hidden="true" /> : <PanelRightClose size={18} aria-hidden="true" />}
+            {assistantHidden ? 'AIアシスタントを表示' : 'AIアシスタントを隠す'}
+          </button>
           {fileInfo && (
             <button className="btn-reset" onClick={onNew} disabled={loading || aiBusy || pyramidBusy}>
               新規分析
@@ -257,7 +267,7 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
 
       <div className="split-container" ref={containerRef}>
         {/* 左パネル: 既存の分析UI */}
-        <div className="split-left" ref={leftPanel} onScroll={e => { const top = e.currentTarget.scrollTop; setScroll(value => ({ ...value, left_scroll: top })) }} style={{ width: `${leftPct}%` }}>
+        <div className="split-left" ref={leftPanel} onScroll={e => { const top = e.currentTarget.scrollTop; setScroll(value => ({ ...value, left_scroll: top })) }} style={{ width: assistantHidden ? '100%' : `${leftPct}%` }}>
           <nav className="section-nav">
             {[
               { id: 'sec-upload',   label: '学習データ' },
@@ -359,12 +369,12 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
         </div>
 
         {/* ドラッグ可能な縦スライダー */}
-        <div className="split-divider" onMouseDown={onDividerMouseDown}>
+        <div className="split-divider" hidden={assistantHidden} onMouseDown={onDividerMouseDown}>
           <div className="split-divider-handle" />
         </div>
 
         {/* 右パネル: AIアシスタント（解説/チャット/知識ベース） */}
-        <div id="assistant-panel" ref={rightPanel} onScroll={e => { const top = e.currentTarget.scrollTop; setScroll(value => ({ ...value, right_scroll: top })) }} className="split-right" style={{ width: `${100 - leftPct}%` }}>
+        <div id="assistant-panel" hidden={assistantHidden} ref={rightPanel} onScroll={e => { const top = e.currentTarget.scrollTop; setScroll(value => ({ ...value, right_scroll: top })) }} className="split-right" style={{ width: `${100 - leftPct}%` }}>
           <AssistantPanel results={results} ai={ai} onAiChange={setAi} questionRequest={questionRequest} chat={chat} onChatChange={setChat} tab={assistantTab} setTab={setAssistantTab} onBusy={setAiBusy} />
         </div>
       </div>
