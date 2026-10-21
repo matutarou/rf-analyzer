@@ -32,7 +32,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   ScatterChart, Scatter, ReferenceLine, Cell, ComposedChart, Line,
 } from 'recharts'
-import { historyDomain } from '../optunaHistory'
+import { historyDomain, readHistoryHidden, writeHistoryHidden } from '../optunaHistory'
 
 // value_norm (0=低/青 → 1=高/赤) をRGB補間で色に変換
 function shapColor(norm) {
@@ -56,6 +56,8 @@ const SHAP_LOW_COLOR  = '#3b82f6'
 
 export default function Results({ results }) {
   const [shapTopN, setShapTopN] = useState(10)
+  const [historyHidden, setHistoryHidden] = useState(() => readHistoryHidden())
+  useEffect(() => { writeHistoryHidden(historyHidden) }, [historyHidden])
 
   useEffect(() => {
     if (results) {
@@ -123,8 +125,11 @@ export default function Results({ results }) {
           {/* Optunaの試行ごとのR²を折れ線で表示する */}
           {history?.length > 0 && (
             <div style={{ borderTop: '1px solid #f1f5f9', marginTop: 16, paddingTop: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', letterSpacing: '0.05em', marginBottom: 10 }}>Optuna 試行ごとの決定係数 R²</div>
-              <ResponsiveContainer width="100%" height={260}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, color: '#94a3b8', letterSpacing: '0.05em', marginBottom: 10, cursor: 'pointer' }}>
+                <input type="checkbox" checked={!historyHidden} onChange={e => setHistoryHidden(!e.target.checked)} />
+                Optuna 試行ごとの決定係数 R² を表示
+              </label>
+              {!historyHidden && <ResponsiveContainer width="100%" height={260}>
                 <ComposedChart data={history} margin={{ top: 8, right: 16, bottom: 16, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="trial" type="number" domain={[1, history.length]} allowDecimals={false} tick={{ fontSize: 11 }} label={{ value: '試行回数', position: 'bottom', fontSize: 12, offset: 0 }} />
@@ -132,7 +137,7 @@ export default function Results({ results }) {
                   <Tooltip formatter={(v, name) => [v == null ? '—' : Number(v).toFixed(4), name]} labelFormatter={v => `試行 ${v}`} />
                   <Line dataKey="value" name="R²" type="linear" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} connectNulls isAnimationActive={false} />
                 </ComposedChart>
-              </ResponsiveContainer>
+              </ResponsiveContainer>}
             </div>
           )}
         </div>
