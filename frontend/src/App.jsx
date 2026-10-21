@@ -13,6 +13,7 @@ import DataDiagnostics from './components/DataDiagnostics'
 import PopulationPyramid from './components/PopulationPyramid'
 import AnalysisHistory from './components/AnalysisHistory'
 import { WorkspaceWriter } from './workspaceWriter'
+import { isBlankWorkspace } from './isBlankWorkspace'
 import { MessageCircleQuestion } from 'lucide-react'
 import './workspace.css'
 
@@ -207,13 +208,15 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
       if (status === 'saved') { setHistoryRevision(v => v + 1); savedCallback.current() }
     },
   )
+  const blank = isBlankWorkspace(snapshot, writer.current.version)
   const serialized = JSON.stringify(snapshot)
   useLayoutEffect(() => { writer.current.update(JSON.parse(serialized)) }, [serialized])
   useEffect(() => {
-    setSaveStatus('pending')
+    setSaveStatus(blank ? 'new' : 'pending')
+    if (blank) { setSaveError(''); return }
     const timer = setTimeout(() => writer.current.flush().catch(() => {}), 600)
     return () => clearTimeout(timer)
-  }, [serialized])
+  }, [serialized, blank])
   useEffect(() => {
     const warn = event => { if (writer.current.dirty || loading || aiBusy) { event.preventDefault(); event.returnValue = '' } }
     window.addEventListener('beforeunload', warn)
@@ -238,7 +241,7 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
               <p className="header-sub">Random Forest 回帰分析ツール</p>
             </div>
           </div>
-          <div className="workspace-title"><input aria-label="分析名" value={name} maxLength={150} onChange={e => setName(e.target.value)} /><span role="status">{{pending: '未保存', saving: '保存中...', saved: '保存済み', error: '保存失敗'}[saveStatus]}</span></div>
+          <div className="workspace-title"><input aria-label="分析名" value={name} maxLength={150} onChange={e => setName(e.target.value)} /><span role="status">{blank ? '新規' : {new: '新規', pending: '未保存', saving: '保存中...', saved: '保存済み', error: '保存失敗'}[saveStatus]}</span></div>
           {fileInfo && (
             <button className="btn-reset" onClick={onNew} disabled={loading || aiBusy || pyramidBusy}>
               新規分析

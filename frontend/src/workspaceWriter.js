@@ -1,3 +1,5 @@
+import { isBlankWorkspace } from './isBlankWorkspace.js'
+
 // 保存を直列化し、通信中の変更も最後まで書き込む。
 export class WorkspaceWriter {
   constructor(persist, version = 0, onStatus = () => {}) {
@@ -11,7 +13,8 @@ export class WorkspaceWriter {
   update(snapshot) {
     this.latest = JSON.stringify(snapshot)
   }
-  get dirty() { return this.latest !== this.saved }
+  get blank() { return this.latest !== null && isBlankWorkspace(JSON.parse(this.latest), this.version) }
+  get dirty() { return this.latest !== this.saved && !this.blank }
   flush() {
     if (this.running) return this.running
     this.running = this.drain().finally(() => { this.running = null })
@@ -30,6 +33,6 @@ export class WorkspaceWriter {
         throw error
       }
     }
-    this.onStatus('saved')
+    this.onStatus(this.blank ? 'new' : 'saved')
   }
 }
