@@ -86,6 +86,9 @@ def columns_info(df):
     for c in df.columns:
         s = df[c]
         info = {"name": c, "dtype": str(s.dtype), "null_count": int(s.isna().sum()), "unique_count": int(s.nunique())}
+        source = df.attrs.get('source_sheets', {}).get(c)
+        if source:
+            info['source_sheet'] = source
         if pd.api.types.is_numeric_dtype(s):
             for key in ("min", "max", "mean"):
                 value = getattr(s, key)()
@@ -153,7 +156,8 @@ def encode_dataset(df):
             return value.item()
         return value
     return json.dumps({"format": "lossless-v1", "columns": [
-        {"name": c, "dtype": str(df[c].dtype), "values": [encode(v) for v in df[c]]}
+        {"name": c, "dtype": str(df[c].dtype), "values": [encode(v) for v in df[c]],
+         **({"source_sheet": df.attrs['source_sheets'][c]} if c in df.attrs.get('source_sheets', {}) else {})}
         for c in df.columns
     ]}, ensure_ascii=False, allow_nan=False)
 
@@ -168,8 +172,10 @@ def decode_dataset(dataset):
         if isinstance(value, dict) and "datetime" in value:
             return pd.Timestamp(value["datetime"])
         return value
-    return pd.DataFrame({c["name"]: pd.Series([decode(v) for v in c["values"]], dtype=c["dtype"])
-                         for c in payload["columns"]})
+    frame = pd.DataFrame({c["name"]: pd.Series([decode(v) for v in c["values"]], dtype=c["dtype"])
+                          for c in payload["columns"]})
+    frame.attrs['source_sheets'] = {column['name']: column['source_sheet'] for column in payload['columns'] if column.get('source_sheet')}
+    return frame
 
 
 def dataset_fingerprint(df):

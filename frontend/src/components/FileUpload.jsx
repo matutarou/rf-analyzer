@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import axios from 'axios'
 import PyramidSheetPicker from './PyramidSheetPicker'
-import { guessPyramidConfig } from '../populationPyramid'
+import { defaultWorkbookSelection } from '../workbookSelection'
 
 export default function FileUpload({ onUpload, fileInfo }) {
   const [dragOver, setDragOver] = useState(false)
@@ -26,13 +26,12 @@ export default function FileUpload({ onUpload, fileInfo }) {
       const form = new FormData()
       form.append('file', file)
       const { data } = await axios.post('/api/upload/sheets', form)
-      const pyramid = data.sheets.find(sheet => sheet.name.includes('人口ピラミッド') && sheet.columns.length >= 4 && sheet.rows > 0)
-      const first = data.sheets.find(sheet => sheet.name !== pyramid?.name && sheet.rows > 0 && sheet.columns.length > 0)
+      const defaults = defaultWorkbookSelection(data.sheets)
       setWorkbook({ file, sheets: data.sheets })
-      setSelected(first ? [first.name] : [])
-      setBaseSheet(first?.name || '')
+      setSelected(defaults.sheetNames)
+      setBaseSheet(defaults.sheetNames[0] || '')
       setJoinKeys(Object.fromEntries(data.sheets.map(sheet => [sheet.name, sheet.columns[0] || ''])))
-      setPyramidConfig(guessPyramidConfig(pyramid))
+      setPyramidConfig(defaults.pyramidConfig)
     } catch (err) {
       const detail = err.response?.data?.detail
       setError(typeof detail === 'string' ? detail : 'Excelのシート一覧を取得できませんでした')
@@ -106,11 +105,12 @@ export default function FileUpload({ onUpload, fileInfo }) {
           <legend>Excelシートの選択</legend>
           <p>{workbook.file.name}</p>
           <p>1シートだけ読み込むか、複数シートを共通のキーで横結合できます。</p>
+          <p>「想定される要因」シートの列から説明変数を選択します。「人口ピラミッド」シートは可視化専用です。目的変数が別シートにある場合は、そのシートも選択して結合してください。</p>
           <div className="work-scroll"><table className="work-table">
             <thead><tr><th>使用</th><th>シート</th><th>行 × 列</th>{selected.length > 1 && <th>結合キー</th>}</tr></thead>
             <tbody>{workbook.sheets.map(sheet => <tr key={sheet.name}>
               <td><input type="checkbox" aria-label={`${sheet.name}を読み込む`} checked={selected.includes(sheet.name)} disabled={!sheet.rows || !sheet.columns.length || pyramidConfig?.sheet_name === sheet.name} onChange={() => toggleSheet(sheet.name)} /></td>
-              <td>{sheet.name}{pyramidConfig?.sheet_name === sheet.name && '（可視化専用）'}</td><td>{sheet.rows.toLocaleString()} × {sheet.columns.length}</td>
+              <td>{sheet.name}{pyramidConfig?.sheet_name === sheet.name ? '（可視化専用）' : sheet.name === '想定される要因' ? '（説明変数候補）' : ''}</td><td>{sheet.rows.toLocaleString()} × {sheet.columns.length}</td>
               {selected.length > 1 && <td>{selected.includes(sheet.name) && <select aria-label={`${sheet.name}の結合キー`} value={joinKeys[sheet.name]} onChange={event => setJoinKeys(value => ({ ...value, [sheet.name]: event.target.value }))}>
                 {sheet.columns.map(column => <option key={column} value={column}>{column}</option>)}
               </select>}</td>}

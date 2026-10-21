@@ -14,6 +14,7 @@ import PopulationPyramid from './components/PopulationPyramid'
 import AnalysisHistory from './components/AnalysisHistory'
 import { WorkspaceWriter } from './workspaceWriter'
 import { isBlankWorkspace } from './isBlankWorkspace'
+import { featureColumns } from './workbookSelection'
 import { readAssistantHidden, writeAssistantHidden } from './assistantVisibility'
 import { MessageCircleQuestion, PanelRightClose, PanelRightOpen } from 'lucide-react'
 import './workspace.css'
@@ -118,8 +119,9 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
       setPopulationPyramid(res.data.population_pyramid || null)
       if (name === '新しい分析') setName(file.name.slice(0, 150))
       const names = new Set(res.data.columns.map(c => c.name))
+      const availableFeatures = new Set(featureColumns(res.data.columns).map(column => column.name))
       setSelectedTarget(value => names.has(value) ? value : '')
-      setSelectedFeatures(value => value.filter(c => names.has(c)))
+      setSelectedFeatures(value => value.filter(c => availableFeatures.has(c)))
       setResults(null)
       setTrainedParams(null)
       setAi({ explanations: [], summary: '' })

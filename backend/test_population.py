@@ -88,6 +88,31 @@ class PopulationTest(unittest.TestCase):
         self.assertEqual(restored.json()['state']['population_pyramid'], pyramid)
         self.assertIsNone(restored.json()['file_info'])
 
+    def test_factor_sheet_and_population_sheet_survive_save_and_restore(self):
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+            self.frame.to_excel(writer, sheet_name='人口ピラミッド', index=False)
+            pd.DataFrame({'市町村': ['日立市', '水戸市'], '施設数': [4, 3]}).to_excel(writer, sheet_name='想定される要因', index=False)
+            pd.DataFrame({'自治体': ['水戸市', '日立市'], '率': [0.1, -0.2]}).to_excel(writer, sheet_name='目的変数', index=False)
+        response = self.client.post('/api/upload', files={'file': ('factors.xlsx', buffer.getvalue())}, data={
+            'sheet_names': json.dumps(['目的変数', '想定される要因']),
+            'join_keys': json.dumps({'目的変数': '自治体', '想定される要因': '市町村'}),
+            'pyramid_config': json.dumps(self.config),
+        })
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()
+        self.assertEqual(result['preview'][0]['想定される要因 / 施設数'], 3)
+        self.assertEqual([column['source_sheet'] for column in result['columns']], ['目的変数', '目的変数', '想定される要因'])
+        saved = self.client.post('/api/projects', json={
+            'name': 'シート別の分析', 'file_id': result['file_id'], 'target': '率',
+            'features': ['想定される要因 / 施設数'], 'population_pyramid': result['population_pyramid'],
+        })
+        self.assertEqual(saved.status_code, 201, saved.text)
+        restored = self.client.post(f"/api/projects/{saved.json()['id']}/restore").json()
+        self.assertEqual(restored['file_info']['columns'], result['columns'])
+        self.assertEqual(restored['state']['features'], ['想定される要因 / 施設数'])
+        self.assertEqual(restored['state']['population_pyramid'], result['population_pyramid'])
+
     def test_population_data_survives_save_with_analysis_data(self):
         result = self.upload('/api/upload', {'sheet_names': json.dumps(['分析'])}).json()
         saved = self.client.post('/api/projects', json={'name': '分析と人口', 'file_id': result['file_id'], 'population_pyramid': result['population_pyramid']})

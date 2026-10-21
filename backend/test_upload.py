@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import routes_data
+from workspace import columns_info, decode_dataset, encode_dataset
 
 
 class UploadTest(unittest.TestCase):
@@ -66,6 +67,20 @@ class UploadTest(unittest.TestCase):
         response = self.upload(['施設'])
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()['preview'][0], {'自治体': '日立市', '施設数': 4})
+
+    def test_column_sources_survive_merge_and_dataset_roundtrip(self):
+        for selected in [['施設'], ['人口', '施設'], ['施設', '人口']]:
+            with self.subTest(selected=selected):
+                response = self.upload(selected, {'人口': '市町村', '施設': '自治体'})
+                self.assertEqual(response.status_code, 200, response.text)
+                result = response.json()
+                columns = result['columns']
+                self.assertEqual(columns[0]['source_sheet'], selected[0])
+                self.assertEqual(columns[-1]['source_sheet'], selected[-1])
+                frame = routes_data.uploaded_data[result['file_id']]
+                restored = decode_dataset(encode_dataset(frame))
+                self.assertEqual(columns_info(restored), columns)
+                self.assertEqual(encode_dataset(restored), encode_dataset(frame))
 
     def test_merge_aligns_keys_and_preserves_base_order(self):
         response = self.upload(['人口', '施設'], {'人口': '市町村', '施設': '自治体'})
