@@ -84,7 +84,9 @@ def combine_sheets(book, selected, join_keys):
     if any(frame.empty for frame in frames.values()):
         raise HTTPException(400, "選択したシートにデータがありません")
     if len(selected) == 1:
-        return frames[selected[0]], []
+        frame = frames[selected[0]]
+        frame.attrs['source_sheets'] = {column: selected[0] for column in frame.columns}
+        return frame, []
     for name, frame in frames.items():
         key = join_keys.get(name)
         if not isinstance(key, str) or key not in frame.columns:
@@ -96,6 +98,7 @@ def combine_sheets(book, selected, join_keys):
             raise HTTPException(400, f"「{name}」の結合キー「{key}」が重複しています。市町村などが1行ずつになるよう集計してから結合してください")
         frame.index = values
     result = frames[selected[0]]
+    sources = {column: selected[0] for column in result.columns}
     warnings = []
     for name in selected[1:]:
         frame = frames[name]
@@ -109,6 +112,8 @@ def combine_sheets(book, selected, join_keys):
         if any(column in result.columns for column in additional.columns):
             raise HTTPException(400, "結合後の列名が重複します。元のシート名または列名を変更してください")
         result = result.join(additional, how='left', validate='one_to_one')
+        sources.update({column: name for column in additional.columns})
+    result.attrs['source_sheets'] = sources
     return result.reset_index(drop=True), warnings
 
 

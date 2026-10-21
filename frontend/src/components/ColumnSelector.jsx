@@ -1,3 +1,5 @@
+import { featureColumns } from '../workbookSelection'
+
 export default function ColumnSelector({ columns, onSelect, onProceed, initialTarget = '', initialFeatures = [] }) {
   const target = initialTarget
   const features = initialFeatures
@@ -19,7 +21,8 @@ export default function ColumnSelector({ columns, onSelect, onProceed, initialTa
   const numericColumns = analysisColumns.filter(
     (c) => c.dtype.includes('int') || c.dtype.includes('float')
   )
-  const allColumns = analysisColumns
+  const allColumns = featureColumns(columns)
+  const hasFactorSheet = columns.some(column => column.source_sheet === '想定される要因')
 
   const toggleFeature = (name) => {
     setFeatures((prev) =>
@@ -82,6 +85,7 @@ export default function ColumnSelector({ columns, onSelect, onProceed, initialTa
               説明変数（特徴量）
               <span className="tag tag-feature">複数選択可</span>
             </h3>
+            {hasFactorSheet && <p style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>「想定される要因」シートの列から選択してください（自治体名・結合キーは除外）。</p>}
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
               <button
                 className="btn btn-secondary"

@@ -86,15 +86,13 @@ class WorkspaceTest(unittest.TestCase):
         self.assertIsNone(result['matrix'][0][2])
         self.assertIsNone(result['matrix'][2][2])
 
-    def test_heatmap_limit_is_explicit_and_variables_can_be_selected(self):
+    def test_heatmap_shows_all_numeric_variables_and_can_be_narrowed(self):
         main.uploaded_data[self.file_id] = pd.DataFrame({f'x{index}': range(4) for index in range(45)})
         result = self.client.post('/api/relationships', json={'file_id': self.file_id}).json()
-        self.assertEqual(len(result['variables']), 40)
+        self.assertEqual(len(result['variables']), 45)
         self.assertEqual(len(result['available']), 45)
-        self.assertTrue(result['truncated'])
         selected = self.client.post('/api/relationships', json={'file_id': self.file_id, 'features': ['x44', 'x0']}).json()
         self.assertEqual(selected['variables'], ['x44', 'x0'])
-        self.assertFalse(selected['truncated'])
 
     def test_save_restore_report_delete(self):
         response = self.save()
