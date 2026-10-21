@@ -92,12 +92,19 @@ class ImprovementsTest(unittest.TestCase):
         X = rng.normal(size=(12, 3))
         y = X[:, 0] * 2 + X[:, 1] + rng.normal(scale=0.1, size=12)
         model = RandomForestRegressor(n_estimators=5, random_state=7)
-        predictions, values = routes_analysis._loo_predictions(model, X, y, lambda message: None, "検証", explain=True)
+        predictions, values, interactions = routes_analysis._loo_predictions(model, X, y, lambda message: None, "検証", explain=True)
         for row in (0, 5, 11):
             others = np.delete(np.arange(12), row)
             fold = clone(model).fit(X[others], y[others])
             self.assertAlmostEqual(predictions[row], fold.predict(X[[row]])[0])
             np.testing.assert_allclose(values[row], routes_analysis.shap.TreeExplainer(fold).shap_values(X[[row]])[0])
+            np.testing.assert_allclose(interactions[row], routes_analysis.shap.TreeExplainer(fold).shap_interaction_values(X[[row]])[0])
+        # 相互作用の強さは対称で、対角（単独の効果）は空欄
+        strength = routes_analysis.interaction_strength(interactions)
+        self.assertEqual(len(strength), 3)
+        self.assertTrue(all(strength[i][i] is None for i in range(3)))
+        self.assertAlmostEqual(strength[0][1], strength[1][0])
+        self.assertAlmostEqual(strength[0][1], float(np.abs(interactions[:, 0, 1] + interactions[:, 1, 0]).mean()))
         # SHAPを求めない場合は従来どおり予測だけを返す
         np.testing.assert_allclose(routes_analysis._loo_predictions(model, X, y, lambda message: None, "検証"), predictions)
         main.uploaded_data["oof-shap"] = pd.DataFrame({"a": X[:, 0], "b": X[:, 1], "c": X[:, 2], "y": y})
@@ -107,6 +114,7 @@ class ImprovementsTest(unittest.TestCase):
         for item in result["shap"]["importance"]:
             self.assertAlmostEqual(item["mean_abs_shap"], expected[["a", "b", "c"].index(item["feature"])])
         self.assertEqual(result["shap"]["features"], ["a", "b", "c"])
+        self.assertEqual(result["shap"]["interaction"], strength)
         self.assertEqual(result["shap"]["rows"], list(range(12)))
         np.testing.assert_allclose(result["shap"]["values"], values)
         self.assertEqual({point["row"] for point in result["shap"]["beeswarm"]}, set(range(12)))

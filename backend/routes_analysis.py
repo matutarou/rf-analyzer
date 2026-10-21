@@ -164,10 +164,12 @@ def analyze(req: AnalyzeRequest):
 
 
 def _loo_predictions(model, X, y, checkpoint, stage, explain=False):
-    """LOOCVのout-of-fold予測を返す。explain=Trueなら、各行をその行を除いて学習したモデルで説明したSHAP値も返す"""
+    """LOOCVのout-of-fold予測を返す。explain=Trueなら、各行をその行を除いて学習したモデルで説明した
+    SHAP値（行 × 変数）とSHAP相互作用値（行 × 変数 × 変数）も返す"""
     from sklearn.base import clone
     predictions = np.empty(len(y))
     shap_values = np.zeros(X.shape) if explain else None
+    interactions = np.zeros((X.shape[0], X.shape[1], X.shape[1])) if explain else None
     for i, (train, test) in enumerate(LeaveOneOut().split(X)):
         checkpoint(f"{stage}: {i}/{len(y)}件")
         estimator = clone(model)
@@ -175,9 +177,17 @@ def _loo_predictions(model, X, y, checkpoint, stage, explain=False):
         predictions[test] = estimator.predict(X[test])
         if explain:
             # 対象の行を学習に含めたモデルで説明すると、その行の実測値を覚えた分まで要因の効きに見えるため除外する
-            shap_values[test] = shap.TreeExplainer(estimator).shap_values(X[test])
+            explainer = shap.TreeExplainer(estimator)
+            shap_values[test] = explainer.shap_values(X[test])
+            interactions[test] = explainer.shap_interaction_values(X[test])
     checkpoint(f"{stage}: {len(y)}/{len(y)}件")
-    return (predictions, shap_values) if explain else predictions
+    return (predictions, shap_values, interactions) if explain else predictions
+
+
+def interaction_strength(interactions):
+    """変数iとjの組み合わせによる予測への寄与（相互作用値のi,jとj,iの和）の絶対値の平均。対角は単独の効果なのでNone"""
+    pair = np.abs(interactions + interactions.transpose(0, 2, 1)).mean(axis=0)
+    return [[None if i == j else float(pair[i, j]) for j in range(pair.shape[1])] for i in range(pair.shape[0])]
 
 
 
@@ -240,7 +250,7 @@ def _analyze(req: AnalyzeRequest, checkpoint=lambda message: None):
 
         # Leave-One-Out CV：全サンプルのout-of-fold予測を集めて全体で評価する
         loo = LeaveOneOut()
-        y_oof, oof_shap = _loo_predictions(model, X, y, checkpoint, "交差検証", explain=True)
+        y_oof, oof_shap, oof_interactions = _loo_predictions(model, X, y, checkpoint, "交差検証", explain=True)
 
         metrics = {
             "cv": {
@@ -318,7 +328,9 @@ def _analyze(req: AnalyzeRequest, checkpoint=lambda message: None):
         # 市町村ごとのSHAP値（行 × 説明変数）。シミュレーションでの並び替えなどに使う
         shap_data = {"importance": shap_importance, "beeswarm": beeswarm,
                      "features": list(req.feature_columns), "rows": [int(p) for p in positions],
-                     "values": oof_shap.tolist()}
+                     "values": oof_shap.tolist(),
+                     # 相互作用の強さ（変数 × 変数、featuresと同じ順）
+                     "interaction": interaction_strength(oof_interactions)}
 
         checkpoint("完了処理中")
         result = {

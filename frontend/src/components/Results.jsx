@@ -33,6 +33,8 @@ import {
   ScatterChart, Scatter, ReferenceLine, Cell, ComposedChart, Line,
 } from 'recharts'
 import { historyDomain, readHistoryHidden, writeHistoryHidden } from '../optunaHistory'
+import { interactionView } from '../shapInteraction'
+import { correlationColor } from '../correlationHeatmap'
 
 // value_norm (0=低/青 → 1=高/赤) をRGB補間で色に変換
 function shapColor(norm) {
@@ -56,6 +58,7 @@ const SHAP_LOW_COLOR  = '#3b82f6'
 
 export default function Results({ results }) {
   const [shapTopN, setShapTopN] = useState(10)
+  const [focusedPair, setFocusedPair] = useState(null)
   const [historyHidden, setHistoryHidden] = useState(() => readHistoryHidden())
   useEffect(() => { writeHistoryHidden(historyHidden) }, [historyHidden])
 
@@ -211,7 +214,26 @@ export default function Results({ results }) {
         )
       })()}
 
-
+      {/* SHAP相互作用：2つの変数の組み合わせによる予測への寄与の大きさ（SHAPの表示件数・順序と連動） */}
+      {(() => {
+        const view = interactionView(shap, (shap?.importance || []).slice(0, shapTopN).map(item => item.feature))
+        if (!view) return null
+        return (
+          <div className="chart-card" style={{ marginTop: 20 }}>
+            <h3 style={{ margin: '0 0 8px' }}>SHAP 相互作用</h3>
+            <div className="heatmap-legend"><span>0（弱い）</span><span className="heatmap-gradient" style={{ background: `linear-gradient(to right, white, ${correlationColor(1)})` }} /><span>{fmtNum(view.max)}（強い）</span></div>
+            {focusedPair && <p role="status" className="heatmap-detail">{focusedPair.x} × {focusedPair.y}：{fmtNum(focusedPair.value)}</p>}
+            <div className="heatmap-scroll"><table className="heatmap-table" aria-label="SHAP相互作用ヒートマップ"><thead><tr><th scope="col">変数</th>{view.features.map(name => <th scope="col" key={name} title={name}><span>{name}</span></th>)}</tr></thead><tbody>
+              {view.features.map((rowName, rowIndex) => <tr key={rowName}><th scope="row" title={rowName}>{rowName}</th>{view.features.map((columnName, columnIndex) => {
+                const value = view.matrix[rowIndex][columnIndex]
+                if (value == null) return <td key={columnName}><button type="button" disabled style={{ background: '#f1f5f9' }} aria-label={`${rowName}（同じ変数）`}>—</button></td>
+                const label = `${rowName} × ${columnName}：${fmtNum(value)}`
+                return <td key={columnName}><button type="button" style={{ background: correlationColor(view.max ? value / view.max : 0) }} aria-label={label} title={label} onClick={() => setFocusedPair({ x: rowName, y: columnName, value })}>{view.max ? (value / view.max).toFixed(2) : '0.00'}</button></td>
+              })}</tr>)}
+            </tbody></table></div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
