@@ -128,6 +128,33 @@ class ImprovementsTest(unittest.TestCase):
         self.assertEqual({point["label"] for point in missing["shap"]["beeswarm"]}, {f"市{i}" for i in range(12) if i != 2})
         main.uploaded_data.pop("oof-shap", None); main.trained_models.pop("oof-shap", None); main.model_artifacts.pop("oof-shap", None)
 
+    def test_attach_completed_job_to_reopened_data(self):
+        from fastapi.testclient import TestClient
+        client = TestClient(main.app)
+        frame = pd.DataFrame({"x": range(12), "y": [v * 2.0 for v in range(12)]})
+        main.uploaded_data["job-src"] = frame
+        body = {"file_id": "job-src", "target_column": "y", "feature_columns": ["x"], "n_estimators": 3}
+        job_id = client.post("/api/analysis-jobs", json=body).json()["job_id"]
+        for _ in range(500):
+            job = client.get(f"/api/analysis-jobs/{job_id}").json()
+            if job["status"] in ("completed", "failed"):
+                break
+            time.sleep(.02)
+        self.assertEqual(job["status"], "completed", job)
+        self.assertEqual(job["file_id"], "job-src")
+        # 開き直すと同じデータが別のfile_idになる。付け替えるとそのfile_idでモデルを使える
+        main.uploaded_data["job-reopened"] = frame.copy()
+        self.assertEqual(client.post(f"/api/analysis-jobs/{job_id}/attach", json={"file_id": "job-reopened"}).status_code, 200)
+        self.assertIs(main.trained_models["job-reopened"], main.trained_models["job-src"])
+        self.assertEqual(main.model_artifacts["job-reopened"].metadata["id"], job["result"]["model_id"])
+        # データが違う場合や、存在しないジョブは付け替えない
+        main.uploaded_data["job-other"] = frame.assign(y=frame["y"] + 1)
+        self.assertEqual(client.post(f"/api/analysis-jobs/{job_id}/attach", json={"file_id": "job-other"}).status_code, 409)
+        self.assertNotIn("job-other", main.trained_models)
+        self.assertEqual(client.post("/api/analysis-jobs/none/attach", json={"file_id": "job-reopened"}).status_code, 404)
+        for key in ("job-src", "job-reopened", "job-other"):
+            main.uploaded_data.pop(key, None); main.trained_models.pop(key, None); main.model_artifacts.pop(key, None)
+
 
 if __name__ == "__main__":
     unittest.main()

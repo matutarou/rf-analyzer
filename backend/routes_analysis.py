@@ -8,6 +8,7 @@ import optuna
 import pandas as pd
 import shap
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import LeaveOneOut
 from sklearn.metrics import (
@@ -110,7 +111,7 @@ def start_analysis_job(req: AnalyzeRequest):
         while len(analysis_jobs) >= 10:
             analysis_jobs.pop(next(iter(analysis_jobs)))
         job_id = str(uuid.uuid4())
-        job = {"status": "queued", "progress": "待機中", "cancel": threading.Event()}
+        job = {"status": "queued", "progress": "待機中", "cancel": threading.Event(), "file_id": req.file_id}
         analysis_jobs[job_id] = job
 
     def checkpoint(message):
@@ -142,6 +143,29 @@ def get_analysis_job(job_id: str):
         raise HTTPException(status_code=404, detail="分析ジョブが見つかりません")
     return {k: v for k, v in job.items() if k != "cancel"}
 
+
+
+class AttachRequest(BaseModel):
+    file_id: str
+
+
+@router.post("/analysis-jobs/{job_id}/attach")
+def attach_analysis_job(job_id: str, req: AttachRequest):
+    """完了したジョブの学習済みモデルを、開き直した後のデータ（別のfile_id）でも使えるようにする"""
+    job = analysis_jobs.get(job_id)
+    if job is None or job["status"] != "completed":
+        raise HTTPException(status_code=404, detail="完了した分析ジョブが見つかりません")
+    source, model_id = job["file_id"], job["result"]["model_id"]
+    if req.file_id == source:
+        return {"attached": True}
+    artifact = model_artifacts.get(source)
+    if req.file_id not in uploaded_data or artifact is None or artifact.metadata["id"] != model_id:
+        raise HTTPException(status_code=409, detail="分析時のモデルが見つかりません。もう一度分析してください")
+    if workspace.dataset_fingerprint(uploaded_data[req.file_id]) != artifact.metadata["fingerprint"]:
+        raise HTTPException(status_code=409, detail="分析時とデータが異なります。もう一度分析してください")
+    trained_models[req.file_id] = trained_models[source]
+    model_artifacts[req.file_id] = artifact
+    return {"attached": True}
 
 
 @router.delete("/analysis-jobs/{job_id}")

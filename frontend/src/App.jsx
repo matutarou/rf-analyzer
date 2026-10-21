@@ -11,6 +11,7 @@ import DataDiagnostics from './components/DataDiagnostics'
 import PopulationPyramid from './components/PopulationPyramid'
 import AnalysisHistory from './components/AnalysisHistory'
 import { WorkspaceWriter } from './workspaceWriter'
+import { canResume, clearPendingJob, readPendingJob, savePendingJob } from './analysisResume'
 import { isBlankWorkspace } from './isBlankWorkspace'
 import { featureColumns, targetColumns } from './workbookSelection'
 import { readAssistantHidden, writeAssistantHidden } from './assistantVisibility'
@@ -140,28 +141,21 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
     setChat(value => ({ ...value, screen_context: '' }))
   }, [selectedTarget, selectedFeatures])
 
-  const handleAnalyze = useCallback(async (params) => {
-    if (loading || !fileInfo || !selectedTarget || selectedFeatures.length === 0) return
-    setHyperParams(params)
-    setLoading(true)
-    setError('')
+  // 分析ジョブの完了を待って結果を反映する。ページを開き直した後の引き継ぎでも使う
+  const followJob = async (jobId, params, fileId) => {
+    setAnalysisJob(jobId)
     try {
-      const started = await axios.post(`${API_BASE}/analysis-jobs`, {
-        file_id: fileInfo.file_id,
-        target_column: selectedTarget,
-        feature_columns: selectedFeatures,
-        ...params,
-      })
-      setAnalysisJob(started.data.job_id)
       let res
       for (;;) {
-        const poll = await axios.get(`${API_BASE}/analysis-jobs/${started.data.job_id}`)
+        const poll = await axios.get(`${API_BASE}/analysis-jobs/${jobId}`)
         setAnalysisProgress(poll.data.progress || '')
         if (poll.data.status === 'completed') { res = { data: poll.data.result }; break }
         if (poll.data.status === 'cancelled') return
         if (poll.data.status === 'failed') throw new Error(poll.data.error)
         await new Promise(resolve => setTimeout(resolve, 700))
       }
+      // 開き直した後はデータのfile_idが変わるため、学習済みモデルを今のデータに付け替える
+      await axios.post(`${API_BASE}/analysis-jobs/${jobId}/attach`, { file_id: fileId })
       setResults(res.data)
       setAi({ explanations: [], summary: '' })
       setQuestionRequest(null)
@@ -174,15 +168,53 @@ const AnalysisWorkspace = forwardRef(function AnalysisWorkspace({ initial, onOpe
         max_features: null,
         random_state: 77,
       })
+    } finally {
+      clearPendingJob(initial.id)
+      setAnalysisJob(null)
+      setAnalysisProgress('')
+    }
+  }
+
+  const handleAnalyze = useCallback(async (params) => {
+    if (loading || !fileInfo || !selectedTarget || selectedFeatures.length === 0) return
+    setHyperParams(params)
+    setLoading(true)
+    setError('')
+    try {
+      const started = await axios.post(`${API_BASE}/analysis-jobs`, {
+        file_id: fileInfo.file_id,
+        target_column: selectedTarget,
+        feature_columns: selectedFeatures,
+        ...params,
+      })
+      savePendingJob(initial.id, { jobId: started.data.job_id, target: selectedTarget, features: selectedFeatures, params })
+      await followJob(started.data.job_id, params, fileInfo.file_id)
     } catch (err) {
       const d = err.response?.data?.detail
       setError(Array.isArray(d) ? d.map(e => e.msg).join(' / ') : (d || err.message || '分析中にエラーが発生しました'))
     } finally {
-      setAnalysisJob(null)
-      setAnalysisProgress('')
       setLoading(false)
     }
   }, [fileInfo, selectedTarget, selectedFeatures, loading])
+
+  // 分析中にページを開き直した場合は、実行中（または完了済み）のジョブを引き継ぐ（StrictModeの二重実行でも1回だけ）
+  const resumed = useRef(false)
+  useEffect(() => {
+    if (resumed.current) return
+    resumed.current = true
+    const pending = readPendingJob(initial.id)
+    if (!pending) return
+    if (!fileInfo || !canResume(pending, selectedTarget, selectedFeatures)) { clearPendingJob(initial.id); return }
+    setLoading(true)
+    followJob(pending.jobId, pending.params || {}, fileInfo.file_id)
+      .catch(err => {
+        // バックエンドの再起動などでジョブが消えている場合は、何も表示せずに引き継ぎをやめる
+        if (err.response?.status === 404) return
+        const d = err.response?.data?.detail
+        setError(typeof d === 'string' ? d : (err.message || '分析結果を受け取れませんでした'))
+      })
+      .finally(() => setLoading(false))
+  }, [])
 
   const [analysisJob, setAnalysisJob] = useState(null)
   const [analysisProgress, setAnalysisProgress] = useState('')
