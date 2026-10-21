@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { defaultWorkbookSelection, featureColumns, shouldAutoImport } from './workbookSelection.js'
+import { defaultWorkbookSelection, featureColumns, shouldAutoImport, targetColumns } from './workbookSelection.js'
 
 const sheet = (name, columns = ['市町村', '率']) => ({ name, rows: 2, columns })
 
@@ -78,4 +78,14 @@ test('人口関係データと想定される要因（原因）がそろうと�
   assert.equal(shouldAutoImport(defaultWorkbookSelection([sheet('人口関係データ')])), false)
   assert.equal(shouldAutoImport(defaultWorkbookSelection([sheet('想定される要因')])), false)
   assert.equal(shouldAutoImport(defaultWorkbookSelection([sheet('分析')])), false)
+})
+
+test('目的変数は人口関係データの数値列だけを候補にし、CSVでは全数値列を候補にする', () => {
+  const columns = [
+    { name: '茨城県', dtype: 'object', source_sheet: '人口関係データ' }, { name: '人口', dtype: 'int64', source_sheet: '人口関係データ' },
+    { name: '備考', dtype: 'object', source_sheet: '人口関係データ' }, { name: '想定される原因 / 所得', dtype: 'float64', source_sheet: '想定される原因' },
+  ]
+  assert.deepEqual(targetColumns(columns), [columns[1]])
+  const csv = [{ name: '市町村', dtype: 'object' }, { name: '人口', dtype: 'int64' }, { name: '所得', dtype: 'float64' }]
+  assert.deepEqual(targetColumns(csv), csv.slice(1))
 })

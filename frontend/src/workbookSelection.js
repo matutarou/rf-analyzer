@@ -29,3 +29,11 @@ export function featureColumns(columns) {
     ? candidates.filter(column => isFactorSheet(column.source_sheet))
     : candidates
 }
+
+// 目的変数の候補（数値列）。人口関係データ由来の列があればその列だけに絞り、CSVや旧履歴では全数値列を候補にする
+export function targetColumns(columns) {
+  const numeric = columns.slice(1).filter(column => column.dtype.includes('int') || column.dtype.includes('float'))
+  return columns.some(column => column.source_sheet === '人口関係データ')
+    ? numeric.filter(column => column.source_sheet === '人口関係データ')
+    : numeric
+}

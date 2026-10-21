@@ -1,4 +1,4 @@
-import { featureColumns } from '../workbookSelection'
+import { featureColumns, targetColumns } from '../workbookSelection'
 
 export default function ColumnSelector({ columns, onSelect, onProceed, initialTarget = '', initialFeatures = [] }) {
   const target = initialTarget
@@ -16,11 +16,7 @@ export default function ColumnSelector({ columns, onSelect, onProceed, initialTa
     )
   }
 
-  // 先頭列は自治体名のため分析対象から除外
-  const analysisColumns = columns.slice(1)
-  const numericColumns = analysisColumns.filter(
-    (c) => c.dtype.includes('int') || c.dtype.includes('float')
-  )
+  const numericColumns = targetColumns(columns)
   const allColumns = featureColumns(columns)
 
   const toggleFeature = (name) => {
